@@ -1,0 +1,24 @@
+# build output
+.build-slices/
+build/
+.ipa-stage/
+package/Applications/
+package/usr/
+
+# release archives
+TuneTube-*.ipa
+tuntube_*.deb
+
+# local test binaries
+tests/test_model
+
+# macOS/editor files
+.DS_Store
+*.swp
+*.swo
+*~
+
+# local credentials and machine-specific overrides
+.env
+.env.*
+*.local

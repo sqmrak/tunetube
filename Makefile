@@ -1,0 +1,57 @@
+# cross-compile the non-arc music client for jailbroken legacy ios devices
+# keep the base slice small; Foundation/UIKit/AVFoundation are enough
+
+THEOS   ?= $(HOME)/theos
+TC      ?= $(firstword $(wildcard $(THEOS)/toolchain/linux/iphone/bin $(HOME)/theos/toolchain/linux/iphone/bin))
+SDK     ?= $(firstword $(wildcard $(YTM_SDK_V7) $(HOME)/sdks-armv7 $(HOME)/sdks/iPhoneOS6.1.sdk $(HOME)/sdks))
+LDID    ?= $(TC)/ldid
+
+TRIPLE  ?= arm-apple-darwin11
+CC      := $(TC)/clang -target $(TRIPLE) -B $(TC)
+ARCH    ?= -arch armv7 -miphoneos-version-min=6.0
+CFLAGS  := -fno-objc-arc -fblocks -Wall -Wextra -O2 $(ARCH) -isysroot $(SDK) -Icore -Iapp
+AVFAUDIO_LDFLAG :=
+ifneq ($(wildcard $(SDK)/System/Library/Frameworks/AVFAudio.framework),)
+AVFAUDIO_LDFLAG := -weak_framework AVFAudio
+endif
+LDFLAGS := $(ARCH) -isysroot $(SDK) \
+           -framework UIKit -framework Foundation \
+           -framework CFNetwork -weak_framework AVFoundation $(AVFAUDIO_LDFLAG) \
+           -framework CoreGraphics -framework QuartzCore -framework CoreMedia \
+           -framework MediaPlayer
+
+CORE_SRC := core/ytm_model.c
+APP_SRC  := app/app_main.m app/main_vc.m app/settings_vc.m app/about_vc.m app/player_vc.m app/library_vc.m app/play_button.m app/ytm_api.m app/ytm_player.m app/tuntube_image_cache.m
+ICON_SRC := app/icons/Icon.png app/icons/Icon@2x.png app/icons/Icon-72.png app/icons/Icon-72@2x.png app/icons/icon-settings.png app/icons/sqmrak.jpg app/icons/player-previous.png app/icons/player-previous@2x.png app/icons/player-next.png app/icons/player-next@2x.png app/icons/player-play.png app/icons/player-play@2x.png app/icons/player-pause.png app/icons/player-pause@2x.png app/icons/player-repeat.png app/icons/player-repeat@2x.png app/icons/player-repeat-on.png app/icons/player-repeat-on@2x.png app/icons/player-star-off.png app/icons/player-star-off@2x.png app/icons/player-star-on.png app/icons/player-star-on@2x.png app/icons/player-play-light.png app/icons/player-play-light@2x.png app/icons/player-pause-light.png app/icons/player-pause-light@2x.png app/icons/player-close.png app/icons/player-close@2x.png
+LAUNCH_SRC := app/icons/Default.png app/icons/Default@2x.png app/icons/Default-568h@2x.png app/icons/Default-Portrait.png app/icons/Default-Portrait@2x.png
+APP      := build/TuneTube.app
+BIN      ?= $(APP)/TuneTube
+
+.PHONY: all clean test fat deb ipa
+
+all: $(BIN)
+
+$(BIN): $(CORE_SRC) $(APP_SRC) $(ICON_SRC) $(LAUNCH_SRC) core/ytm_model.h app/main_vc.h app/ytm_api.h app/ytm_player.h app/settings_vc.h app/about_vc.h app/player_vc.h app/library_vc.h app/play_button.h app/tuntube_config.h app/tuntube_image_cache.h Info.plist
+	@mkdir -p $(APP)
+	$(CC) $(CFLAGS) $(CORE_SRC) $(APP_SRC) -o $(BIN) $(LDFLAGS)
+	$(LDID) -S $(BIN)
+	cp Info.plist $(APP)/
+	cp $(ICON_SRC) $(APP)/
+	cp $(LAUNCH_SRC) $(APP)/
+	@echo "built $(BIN)"
+	@$(TC)/otool -L $(BIN) | tail -n +2
+
+test:
+	$(MAKE) -C tests test
+
+fat:
+	bash build_fat.sh
+
+deb:
+	bash build_deb.sh
+
+ipa:
+	bash build_ipa.sh
+
+clean:
+	rm -rf build

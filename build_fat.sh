@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# build armv7+arm64 slices while keeping the ios 6 linker path explicit
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+THEOS="${THEOS:-${HOME}/theos}"
+TC="${YTM_TC:-${THEOS}/toolchain/linux/iphone/bin}"
+LIPO="${TC}/lipo"
+LDID="${TC}/ldid"
+SDK_V7="${YTM_SDK_V7:-${HOME}/sdks-armv7}"
+SDK_V64="${YTM_SDK_V64:-${HOME}/sdks/iPhoneOS16.5.sdk}"
+SLICES="${ROOT}/.build-slices"
+
+rm -rf "${SLICES}"
+mkdir -p "${SLICES}/armv7" "${SLICES}/arm64"
+
+make -C "${ROOT}" clean all \
+    TRIPLE=arm-apple-darwin11 SDK="${SDK_V7}" \
+    ARCH="-arch armv7 -miphoneos-version-min=6.0" \
+    BIN="${SLICES}/armv7/TuneTube" OBJDIR=build/obj-armv7
+
+make -C "${ROOT}" clean all \
+    TRIPLE=arm64-apple-darwin SDK="${SDK_V64}" \
+    ARCH="-arch arm64 -miphoneos-version-min=7.0" \
+    BIN="${SLICES}/arm64/TuneTube" OBJDIR=build/obj-arm64
+
+rm -rf "${ROOT}/build"
+mkdir -p "${ROOT}/build/TuneTube.app"
+"${LIPO}" -create "${SLICES}/armv7/TuneTube" "${SLICES}/arm64/TuneTube" \
+    -output "${ROOT}/build/TuneTube.app/TuneTube"
+cp "${ROOT}/Info.plist" "${ROOT}/build/TuneTube.app/"
+cp "${ROOT}/app/icons/"Icon*.png "${ROOT}/build/TuneTube.app/"
+cp "${ROOT}/app/icons/icon-settings.png" "${ROOT}/build/TuneTube.app/"
+cp "${ROOT}/app/icons/sqmrak.jpg" "${ROOT}/build/TuneTube.app/"
+cp "${ROOT}/app/icons/"player-*.png "${ROOT}/build/TuneTube.app/"
+cp "${ROOT}/app/icons/"Default*.png "${ROOT}/build/TuneTube.app/"
+"${LDID}" -S "${ROOT}/build/TuneTube.app/TuneTube"
+
+file "${ROOT}/build/TuneTube.app/TuneTube"
+"${LIPO}" -info "${ROOT}/build/TuneTube.app/TuneTube"
+echo "built fat app ${ROOT}/build/TuneTube.app"
