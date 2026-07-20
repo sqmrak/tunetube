@@ -172,13 +172,27 @@ static void YTMPlayerNotify(YTMPlayer *player, NSError *error) {
 }
 
 - (void)setQueue:(NSArray *)tracks selectedIndex:(NSInteger)index usingAPI:(YTMAPI *)api {
-    if (!tracks.count || !api) return;
-    [_queue release];
-    _queue = [tracks mutableCopy];
+    NSMutableArray *newQueue;
+    YTMTrack *selectedTrack;
+    YTMAPI *selectedAPI;
+    if (![tracks isKindOfClass:[NSArray class]] || !tracks.count || !api) return;
+
+    newQueue = [tracks mutableCopy];
+    if (!newQueue.count) {
+        [newQueue release];
+        return;
+    }
     if (index < 0) index = 0;
-    if ((NSUInteger)index >= _queue.count) index = (NSInteger)_queue.count - 1;
+    if ((NSUInteger)index >= newQueue.count) index = (NSInteger)newQueue.count - 1;
+    selectedTrack = [[newQueue objectAtIndex:(NSUInteger)index] retain];
+    selectedAPI = [api retain];
+
+    [_queue release];
+    _queue = newQueue;
     _queueIndex = index;
-    [self playTrack:[_queue objectAtIndex:(NSUInteger)_queueIndex] usingAPI:api];
+    [self playTrack:selectedTrack usingAPI:selectedAPI];
+    [selectedTrack release];
+    [selectedAPI release];
 }
 
 - (void)nextTrack {

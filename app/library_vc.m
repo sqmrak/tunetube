@@ -227,10 +227,18 @@ void TuneTubeRemoveTrack(YTMTrack *track) {
 }
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    NSUInteger row;
+    YTMTrack *track;
+    YTMAPI *api;
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
-    if (!_tracks.count) return;
-    TuneTubeRecordTrack([_tracks objectAtIndex:(NSUInteger)indexPath.row]);
-    [_player setQueue:_tracks selectedIndex:(NSInteger)indexPath.row usingAPI:_api];
+    row = (NSUInteger)indexPath.row;
+    if (row >= _tracks.count || !_player || !_api) return;
+    track = [[_tracks objectAtIndex:row] retain];
+    api = [_api retain];
+    TuneTubeRecordTrack(track);
+    [_player setQueue:_tracks selectedIndex:(NSInteger)row usingAPI:api];
+    [api release];
+    [track release];
     [self dismissViewControllerAnimated:YES completion:nil];
 }
 
