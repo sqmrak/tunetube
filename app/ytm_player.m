@@ -1,6 +1,7 @@
 #import "ytm_player.h"
 
 #import <AVFoundation/AVFoundation.h>
+#import <MediaPlayer/MediaPlayer.h>
 #import <UIKit/UIKit.h>
 #import "ytm_api.h"
 #import "tuntube_image_cache.h"
@@ -8,6 +9,28 @@
 #include <math.h>
 
 NSString * const YTMPlayerDidChangeNotification = @"YTMPlayerDidChangeNotification";
+
+/* the ios 6 headers do not declare the initializer added in ios 10 */
+@interface MPMediaItemArtwork (TuneTubeIOS10)
+- (id)initWithBoundsSize:(CGSize)size
+          requestHandler:(UIImage *(^)(CGSize size))handler;
+@end
+
+static MPMediaItemArtwork *YTMArtworkForImage(UIImage *image) {
+    if (!image || ![MPMediaItemArtwork class]) return nil;
+
+    if ([MPMediaItemArtwork instancesRespondToSelector:
+         @selector(initWithBoundsSize:requestHandler:)]) {
+        return [[MPMediaItemArtwork alloc]
+                initWithBoundsSize:image.size
+                requestHandler:^UIImage *(CGSize size) {
+                    (void)size;
+                    return image;
+                }];
+    }
+
+    return [[MPMediaItemArtwork alloc] initWithImage:image];
+}
 
 static void YTMUpdateNowPlaying(YTMPlayer *player) {
     Class centerClass = NSClassFromString(@"MPNowPlayingInfoCenter");
@@ -46,11 +69,9 @@ static void YTMUpdateNowPlayingArtwork(YTMPlayer *player, YTMTrack *track,
     NSString *requestedURL = [track.thumbnailURL copy];
     TuneLoadImage(requestedURL, ^(UIImage *image) {
         if (!image || player.track != track || generation == 0) return;
-        Class artworkClass = NSClassFromString(@"MPMediaItemArtwork");
         Class centerClass = NSClassFromString(@"MPNowPlayingInfoCenter");
-        if (!artworkClass || !centerClass) return;
-        id artwork = [[artworkClass alloc] performSelector:@selector(initWithImage:)
-                                                 withObject:image];
+        if (![MPMediaItemArtwork class] || !centerClass) return;
+        MPMediaItemArtwork *artwork = YTMArtworkForImage(image);
         id center = [centerClass performSelector:@selector(defaultCenter)];
         if (!artwork || !center || player.track != track) {
             [artwork release];
@@ -96,6 +117,7 @@ static void YTMPlayerNotify(YTMPlayer *player, NSError *error) {
     if (_track.duration) return (NSTimeInterval)_track.duration;
     if (![_player isKindOfClass:[AVPlayer class]]) return 0.0;
     AVPlayerItem *item = [(AVPlayer *)_player currentItem];
+    if (!item) return 0.0;
     Float64 seconds = CMTimeGetSeconds(item.duration);
     return isfinite(seconds) && seconds > 0.0 ? seconds : 0.0;
 }
@@ -159,6 +181,14 @@ static void YTMPlayerNotify(YTMPlayer *player, NSError *error) {
             return;
         }
         AVPlayer *av = [[AVPlayer alloc] initWithURL:url];
+        if (!av) {
+            YTMPlayerNotify(self, [NSError errorWithDomain:@"TuneTubePlayerError"
+                                                       code:9
+                                                   userInfo:[NSDictionary dictionaryWithObject:
+                                                             @"audio player could not be created"
+                                                             forKey:NSLocalizedDescriptionKey]]);
+            return;
+        }
         [_player release];
         _player = av;
         [[NSNotificationCenter defaultCenter] addObserver:self
