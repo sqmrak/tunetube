@@ -4,9 +4,11 @@
 
 static NSString * const YTMErrorDomain = @"com.sqmrak.tuntube.api";
 static NSString * const YTMEndpoint = @"https://music.youtube.com/youtubei/v1";
+static NSString * const YTMEndpointFallback = @"https://youtubei.googleapis.com/youtubei/v1";
 static NSString * const YTMClientName = @"WEB_REMIX";
 static NSString * const YTMClientVersion = @"1.20260707.12.00";
 static NSString * const YTMPlayerEndpoint = @"https://www.youtube.com/youtubei/v1";
+static NSString * const YTMPlayerEndpointFallback = @"https://youtubei.googleapis.com/youtubei/v1";
 static NSString * const YTMIOSClientName = @"IOS";
 static NSString * const YTMIOSClientVersion = @"21.26.4";
 static NSString * const YTMAndroidClientName = @"ANDROID";
@@ -292,6 +294,28 @@ static NSURLRequest *YTMRequest(NSString *path, NSString *apiKey, NSDictionary *
                                  path, apiKey, body, error);
 }
 
+typedef void (^YTMNetworkCompletion)(NSData *data, NSError *error);
+
+static BOOL YTMShouldTryFallback(NSError *error) {
+    if (![error.domain isEqualToString:NSURLErrorDomain]) return NO;
+    return error.code == NSURLErrorCannotFindHost || error.code == NSURLErrorDNSLookupFailed;
+}
+
+/* try the google endpoint when an older dns setup cannot resolve youtube */
+static void YTMSendRequest(NSURLRequest *request, NSURLRequest *fallback,
+                           YTMNetworkCompletion completion) {
+    [NSURLConnection sendAsynchronousRequest:request
+                                       queue:[NSOperationQueue mainQueue]
+                           completionHandler:^(NSURLResponse *response, NSData *data, NSError *error) {
+        (void)response;
+        if (error && fallback && YTMShouldTryFallback(error)) {
+            YTMSendRequest(fallback, nil, completion);
+            return;
+        }
+        completion(data, error);
+    }];
+}
+
 static void YTMDecodeResponse(NSData *data, void (^completion)(id root, NSError *error)) {
     NSError *error = nil;
     id root = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
@@ -366,15 +390,18 @@ static void YTMDecodeResponse(NSData *data, void (^completion)(id root, NSError 
                           nil];
     NSError *error = nil;
     NSURLRequest *request = YTMRequest(@"search", _apiKey, body, &error);
+    NSError *fallbackError = nil;
+    NSURLRequest *fallbackRequest = YTMRequestForEndpoint(
+        YTMEndpointFallback, @"https://youtubei.googleapis.com", @"67",
+        YTMClientVersion,
+        @"Mozilla/5.0 (iPhone; CPU iPhone OS 6_0 like Mac OS X) AppleWebKit/534.46 Mobile/9A334 Safari/7534.48.3",
+        @"search", _apiKey, body, &fallbackError);
     if (!request) {
         completion(nil, error);
         return;
     }
 
-    [NSURLConnection sendAsynchronousRequest:request
-                                       queue:[NSOperationQueue mainQueue]
-                           completionHandler:^(NSURLResponse *response, NSData *data, NSError *networkError) {
-        (void)response;
+    YTMSendRequest(request, fallbackRequest, ^(NSData *data, NSError *networkError) {
         if (networkError) {
             completion(nil, networkError);
             return;
@@ -392,7 +419,7 @@ static void YTMDecodeResponse(NSData *data, void (^completion)(id root, NSError 
             }
             completion(tracks, nil);
         });
-    }];
+    });
 }
 
 static NSURL *YTMDirectAudioURL(id root, BOOL *ciphered) {
@@ -461,15 +488,17 @@ static void YTMAudioURLWithPlayerClient(NSString *videoID,
                                                    apiKey,
                                                    body,
                                                    &error);
+    NSError *fallbackError = nil;
+    NSURLRequest *fallbackRequest = YTMRequestForEndpoint(
+        YTMPlayerEndpointFallback, @"https://youtubei.googleapis.com",
+        clientHeaderName, clientVersion, userAgent, @"player", apiKey, body,
+        &fallbackError);
     if (!request) {
         completion(nil, error);
         return;
     }
 
-    [NSURLConnection sendAsynchronousRequest:request
-                                       queue:[NSOperationQueue mainQueue]
-                           completionHandler:^(NSURLResponse *response, NSData *data, NSError *networkError) {
-        (void)response;
+    YTMSendRequest(request, fallbackRequest, ^(NSData *data, NSError *networkError) {
         if (networkError) {
             completion(nil, networkError);
             return;
@@ -498,7 +527,7 @@ static void YTMAudioURLWithPlayerClient(NSString *videoID,
                 completion(nil, YTMError(8, [NSString stringWithFormat:@"%@ player response has no audio format", clientName]));
             }
         });
-    }];
+    });
 }
 
 - (void)audioURLForTrack:(YTMTrack *)track completion:(YTMAudioCompletion)completion {
