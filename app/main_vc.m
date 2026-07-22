@@ -57,6 +57,26 @@ static NSString *TunePlaybackErrorText(NSError *error) {
     return text;
 }
 
+static BOOL TuneIsNetworkError(NSError *error) {
+    if (!error) return NO;
+    switch (error.code) {
+        case NSURLErrorNotConnectedToInternet:
+        case NSURLErrorNetworkConnectionLost:
+        case NSURLErrorCannotFindHost:
+        case NSURLErrorDNSLookupFailed:
+        case NSURLErrorCannotConnectToHost:
+        case NSURLErrorTimedOut:
+        case NSURLErrorSecureConnectionFailed:
+            return YES;
+        default:
+            break;
+    }
+    NSString *lower = [[error localizedDescription] lowercaseString];
+    return [lower rangeOfString:@"internet connection"].location != NSNotFound ||
+           [lower rangeOfString:@"network connection"].location != NSNotFound ||
+           [lower rangeOfString:@"nsurlerrordomain"].location != NSNotFound;
+}
+
 @interface TuneTrackCell : UITableViewCell {
     UIView *_card;
     CAGradientLayer *_cardGradient;
@@ -597,13 +617,14 @@ static NSString *TunePlaybackErrorText(NSError *error) {
     [_table reloadData];
     [(YTMAPI *)_api search:query completion:^(NSArray *tracks, NSError *error) {
         if (error) {
-            if ([error.domain isEqualToString:NSURLErrorDomain]) {
+            if (TuneIsNetworkError(error)) {
                 switch (error.code) {
                     case NSURLErrorNotConnectedToInternet:
                     case NSURLErrorNetworkConnectionLost:
                     case NSURLErrorCannotFindHost:
                     case NSURLErrorDNSLookupFailed:
                     case NSURLErrorCannotConnectToHost:
+                    case NSURLErrorSecureConnectionFailed:
                         _status.text = @"couldn't connect to youtube";
                         break;
                     case NSURLErrorTimedOut:
