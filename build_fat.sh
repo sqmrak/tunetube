@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build armv7+arm64 slices while keeping the ios 6 linker path explicit
+# build armv7+arm64 slices while keeping the legacy linker path explicit
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
@@ -16,7 +16,7 @@ mkdir -p "${SLICES}/armv7" "${SLICES}/arm64"
 
 make -C "${ROOT}" clean all \
     TRIPLE=arm-apple-darwin11 SDK="${SDK_V7}" \
-    ARCH="-arch armv7 -miphoneos-version-min=6.0" \
+    ARCH="-arch armv7 -miphoneos-version-min=5.0" \
     BIN="${SLICES}/armv7/TuneTube" OBJDIR=build/obj-armv7
 
 make -C "${ROOT}" clean all \

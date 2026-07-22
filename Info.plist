@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>TuneTube</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.sqmrak.tuntube</string>
+	<string>com.sqmrak.tunetube</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -17,9 +17,9 @@
 	<key>CFBundleSignature</key>
 	<string>TUNE</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.0-stable</string>
+	<string>1.0.1-stable</string>
 	<key>CFBundleVersion</key>
-	<string>1000</string>
+	<string>1001</string>
 	<key>CFBundleIconFiles</key>
 	<array>
 		<string>Icon.png</string>
@@ -30,7 +30,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>MinimumOSVersion</key>
-	<string>6.0</string>
+	<string>5.0</string>
 	<key>UIDeviceFamily</key>
 	<array>
 		<integer>1</integer>
@@ -58,7 +58,7 @@
 	<array>
 		<dict>
 			<key>UILaunchImageMinimumOSVersion</key>
-			<string>6.0</string>
+			<string>5.0</string>
 			<key>UILaunchImageName</key>
 			<string>Default</string>
 			<key>UILaunchImageOrientation</key>
@@ -68,7 +68,7 @@
 		</dict>
 		<dict>
 			<key>UILaunchImageMinimumOSVersion</key>
-			<string>6.0</string>
+			<string>5.0</string>
 			<key>UILaunchImageName</key>
 			<string>Default-568h</string>
 			<key>UILaunchImageOrientation</key>
@@ -78,7 +78,7 @@
 		</dict>
 		<dict>
 			<key>UILaunchImageMinimumOSVersion</key>
-			<string>6.0</string>
+			<string>5.0</string>
 			<key>UILaunchImageName</key>
 			<string>Default-Portrait</string>
 			<key>UILaunchImageOrientation</key>

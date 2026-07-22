@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 STAGE="$ROOT/.ipa-stage"
-OUT="$ROOT/TuneTube-1.0.0-stable.ipa"
+OUT="$ROOT/TuneTube-1.0.1-stable.ipa"
 
 bash "$ROOT/build_fat.sh"
 rm -rf "$STAGE"

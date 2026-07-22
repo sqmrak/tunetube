@@ -4,7 +4,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 STAGE="${ROOT}/package"
-OUT="${ROOT}/tuntube_1.0.0-stable_iphoneos-arm.deb"
+OUT="${ROOT}/tunetube_1.0.1-stable_iphoneos-arm.deb"
 
 bash "${ROOT}/build_fat.sh"
 rm -rf "${STAGE}/Applications/TuneTube.app"

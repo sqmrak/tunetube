@@ -7,7 +7,7 @@ package/usr/
 
 # release archives
 TuneTube-*.ipa
-tuntube_*.deb
+tunetube_*.deb
 
 # local test binaries
 tests/test_model

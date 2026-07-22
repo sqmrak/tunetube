@@ -1,6 +1,6 @@
-Package: com.sqmrak.tuntube
+Package: com.sqmrak.tunetube
 Name: TuneTube
-Version: 1.0.0-stable
+Version: 1.0.1-stable
 Architecture: iphoneos-arm
 Description: YouTube Music client for legacy jailbroken iOS
 Maintainer: sqmrak
