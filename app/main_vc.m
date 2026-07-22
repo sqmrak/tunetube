@@ -597,7 +597,25 @@ static NSString *TunePlaybackErrorText(NSError *error) {
     [_table reloadData];
     [(YTMAPI *)_api search:query completion:^(NSArray *tracks, NSError *error) {
         if (error) {
-            _status.text = [error localizedDescription];
+            if ([error.domain isEqualToString:NSURLErrorDomain]) {
+                switch (error.code) {
+                    case NSURLErrorNotConnectedToInternet:
+                    case NSURLErrorNetworkConnectionLost:
+                    case NSURLErrorCannotFindHost:
+                    case NSURLErrorDNSLookupFailed:
+                    case NSURLErrorCannotConnectToHost:
+                        _status.text = @"couldn't connect to youtube";
+                        break;
+                    case NSURLErrorTimedOut:
+                        _status.text = @"youtube request timed out";
+                        break;
+                    default:
+                        _status.text = @"youtube search failed";
+                        break;
+                }
+            } else {
+                _status.text = [error localizedDescription];
+            }
             return;
         }
         [_tracks addObjectsFromArray:tracks];

@@ -391,7 +391,18 @@ typedef void (^YTMNetworkCompletion)(NSData *data, NSError *error);
 
 static BOOL YTMShouldTryFallback(NSError *error) {
     if (![error.domain isEqualToString:NSURLErrorDomain]) return NO;
-    return error.code == NSURLErrorCannotFindHost || error.code == NSURLErrorDNSLookupFailed;
+    switch (error.code) {
+        case NSURLErrorCannotFindHost:
+        case NSURLErrorDNSLookupFailed:
+        case NSURLErrorNotConnectedToInternet:
+        case NSURLErrorNetworkConnectionLost:
+        case NSURLErrorCannotConnectToHost:
+        case NSURLErrorTimedOut:
+        case NSURLErrorSecureConnectionFailed:
+            return YES;
+        default:
+            return NO;
+    }
 }
 
 /* try the google endpoint when an older dns setup cannot resolve youtube */
