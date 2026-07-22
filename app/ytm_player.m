@@ -1,14 +1,18 @@
 #import "ytm_player.h"
 
+#import <dispatch/dispatch.h>
 #import <AVFoundation/AVFoundation.h>
 #import <MediaPlayer/MediaPlayer.h>
 #import <UIKit/UIKit.h>
 #import "ytm_api.h"
-#import "tuntube_image_cache.h"
+#import "tunetube_image_cache.h"
+#import "tunetube_config.h"
 
 #include <math.h>
 
 NSString * const YTMPlayerDidChangeNotification = @"YTMPlayerDidChangeNotification";
+static NSString * const YTMPlaybackAudioCategory = @"AVAudioSessionCategoryPlayback";
+static NSString * const YTMAmbientAudioCategory = @"AVAudioSessionCategoryAmbient";
 
 /* the ios 6 headers do not declare the initializer added in ios 10 */
 @interface MPMediaItemArtwork (TuneTubeIOS10)
@@ -32,6 +36,21 @@ static MPMediaItemArtwork *YTMArtworkForImage(UIImage *image) {
     return [[MPMediaItemArtwork alloc] initWithImage:image];
 }
 
+static BOOL YTMBackgroundAudioEnabled(void) {
+    id value = [[NSUserDefaults standardUserDefaults]
+                objectForKey:TUNETUBE_BACKGROUND_AUDIO_DEFAULTS_KEY];
+    return !value || [value boolValue];
+}
+
+static void YTMConfigureAudioSession(void) {
+    NSError *sessionError = nil;
+    AVAudioSession *session = [AVAudioSession sharedInstance];
+    NSString *category = YTMBackgroundAudioEnabled()
+        ? YTMPlaybackAudioCategory : YTMAmbientAudioCategory;
+    [session setCategory:category error:&sessionError];
+    [session setActive:YES error:&sessionError];
+}
+
 static void YTMUpdateNowPlaying(YTMPlayer *player) {
     Class centerClass = NSClassFromString(@"MPNowPlayingInfoCenter");
     if (!centerClass) return;
@@ -46,7 +65,8 @@ static void YTMUpdateNowPlaying(YTMPlayer *player) {
 
     NSMutableDictionary *info = [NSMutableDictionary dictionary];
     if (track.title.length) [info setObject:track.title forKey:@"title"];
-    if (track.artist.length) [info setObject:track.artist forKey:@"artist"];
+    if (track.artist.length)
+        [info setObject:YTMDisplayArtist(track.artist) forKey:@"artist"];
     if (track.album.length) [info setObject:track.album forKey:@"albumTitle"];
     NSTimeInterval duration = [player duration];
     if (duration > 0.0) {
@@ -64,7 +84,7 @@ static void YTMUpdateNowPlaying(YTMPlayer *player) {
 }
 
 static void YTMUpdateNowPlayingArtwork(YTMPlayer *player, YTMTrack *track,
-                                        NSUInteger generation) {
+                                       NSUInteger generation) {
     if (!track.thumbnailURL.length) return;
     NSString *requestedURL = [track.thumbnailURL copy];
     TuneLoadImage(requestedURL, ^(UIImage *image) {
@@ -87,7 +107,24 @@ static void YTMUpdateNowPlayingArtwork(YTMPlayer *player, YTMTrack *track,
     [requestedURL release];
 }
 
+static NSError *YTMPlayerError(NSInteger code, NSString *message) {
+    return [NSError errorWithDomain:@"TuneTubePlayerError"
+                               code:code
+                           userInfo:[NSDictionary dictionaryWithObject:message
+                                                                forKey:NSLocalizedDescriptionKey]];
+}
+
 static void YTMPlayerNotify(YTMPlayer *player, NSError *error) {
+    if (![NSThread isMainThread]) {
+        [player retain];
+        [error retain];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            YTMPlayerNotify(player, error);
+            [error release];
+            [player release];
+        });
+        return;
+    }
     YTMUpdateNowPlaying(player);
     NSMutableDictionary *info = [NSMutableDictionary dictionaryWithObject:player
                                                                         forKey:@"player"];
@@ -98,6 +135,17 @@ static void YTMPlayerNotify(YTMPlayer *player, NSError *error) {
 }
 
 @implementation YTMPlayer
+
+- (id)init {
+    self = [super init];
+    if (self) {
+        [[NSNotificationCenter defaultCenter] addObserver:self
+                                                 selector:@selector(backgroundAudioChanged:)
+                                                     name:TUNETUBE_BACKGROUND_AUDIO_DID_CHANGE_NOTIFICATION
+                                                   object:nil];
+    }
+    return self;
+}
 
 - (YTMTrack *)track { return _track; }
 - (NSArray *)queue { return _queue; }
@@ -141,6 +189,11 @@ static void YTMPlayerNotify(YTMPlayer *player, NSError *error) {
     [super dealloc];
 }
 
+- (void)backgroundAudioChanged:(NSNotification *)note {
+    (void)note;
+    if (_player) YTMConfigureAudioSession();
+}
+
 - (void)playTrack:(YTMTrack *)track usingAPI:(YTMAPI *)api {
     NSUInteger generation;
     YTMTrack *selectedTrack;
@@ -169,10 +222,7 @@ static void YTMPlayerNotify(YTMPlayer *player, NSError *error) {
     _player = nil;
     YTMPlayerNotify(self, nil);
 
-    NSError *sessionError = nil;
-    AVAudioSession *session = [AVAudioSession sharedInstance];
-    [session setCategory:AVAudioSessionCategoryPlayback error:&sessionError];
-    [session setActive:YES error:&sessionError];
+    YTMConfigureAudioSession();
 
     [selectedAPI audioURLForTrack:selectedTrack completion:^(NSURL *url, NSError *error) {
         if (generation != _generation) return;
@@ -182,11 +232,7 @@ static void YTMPlayerNotify(YTMPlayer *player, NSError *error) {
         }
         AVPlayer *av = [[AVPlayer alloc] initWithURL:url];
         if (!av) {
-            YTMPlayerNotify(self, [NSError errorWithDomain:@"TuneTubePlayerError"
-                                                       code:9
-                                                   userInfo:[NSDictionary dictionaryWithObject:
-                                                             @"audio player could not be created"
-                                                             forKey:NSLocalizedDescriptionKey]]);
+            YTMPlayerNotify(self, YTMPlayerError(9, @"audio player could not be created"));
             return;
         }
         [_player release];
@@ -256,8 +302,25 @@ static void YTMPlayerNotify(YTMPlayer *player, NSError *error) {
 }
 
 - (void)toggle {
-    if (![_player isKindOfClass:[AVPlayer class]]) return;
+    if (!_track) return;
+    if (![_player isKindOfClass:[AVPlayer class]]) {
+        YTMPlayerNotify(self, YTMPlayerError(10, @"audio is still loading"));
+        return;
+    }
     AVPlayer *player = (AVPlayer *)_player;
+    AVPlayerItem *item = [player currentItem];
+    if (!item) {
+        YTMPlayerNotify(self, YTMPlayerError(11, @"audio item is missing"));
+        return;
+    }
+    if (item.status == AVPlayerItemStatusFailed) {
+        YTMPlayerNotify(self, item.error ? item.error : YTMPlayerError(12, @"audio could not be loaded"));
+        return;
+    }
+    if (item.status != AVPlayerItemStatusReadyToPlay) {
+        YTMPlayerNotify(self, YTMPlayerError(10, @"audio is still loading"));
+        return;
+    }
     if ([player rate] > 0.0f) [player pause];
     else [player play];
     YTMPlayerNotify(self, nil);

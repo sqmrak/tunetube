@@ -2,7 +2,7 @@
 
 #import "../core/ytm_model.h"
 
-static NSString * const YTMErrorDomain = @"com.sqmrak.tuntube.api";
+static NSString * const YTMErrorDomain = @"com.sqmrak.tunetube.api";
 static NSString * const YTMEndpoint = @"https://music.youtube.com/youtubei/v1";
 static NSString * const YTMEndpointFallback = @"https://youtubei.googleapis.com/youtubei/v1";
 static NSString * const YTMClientName = @"WEB_REMIX";
@@ -29,25 +29,42 @@ static NSString *YTMString(id value) {
     return [value isKindOfClass:[NSString class]] ? value : nil;
 }
 
+static NSString *YTMCleanText(NSString *value) {
+    if (!value) return nil;
+    NSString *clean = [value stringByTrimmingCharactersInSet:
+                       [NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    return clean.length ? clean : nil;
+}
+
+static BOOL YTMIsErrorText(NSString *value) {
+    if (!value.length) return YES;
+    NSString *text = [[value lowercaseString]
+                      stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    return [text rangeOfString:@"the operation could not be completed"].location != NSNotFound ||
+           [text rangeOfString:@"operation could not be completed"].location != NSNotFound ||
+           [text rangeOfString:@"nsurlerrordomain"].location != NSNotFound;
+}
+
 static NSString *YTMText(id node) {
-    if ([node isKindOfClass:[NSString class]]) return node;
+    if ([node isKindOfClass:[NSString class]]) return YTMCleanText(node);
     if (![node isKindOfClass:[NSDictionary class]]) return nil;
 
     NSString *simple = YTMString([(NSDictionary *)node objectForKey:@"simpleText"]);
-    if (simple) return simple;
+    if (simple) return YTMCleanText(simple);
 
     NSArray *runs = [(NSDictionary *)node objectForKey:@"runs"];
     if ([runs isKindOfClass:[NSArray class]]) {
         NSMutableString *text = [NSMutableString string];
         for (id run in runs) {
-            NSString *part = YTMString([run objectForKey:@"text"]);
+            NSString *part = [run isKindOfClass:[NSDictionary class]]
+                ? YTMString([run objectForKey:@"text"]) : nil;
             if (part) [text appendString:part];
         }
-        if ([text length] > 0) return text;
+        if ([text length] > 0) return YTMCleanText(text);
     }
 
     NSString *value = YTMString([(NSDictionary *)node objectForKey:@"text"]);
-    if (value) return value;
+    if (value) return YTMCleanText(value);
     return nil;
 }
 
@@ -95,10 +112,11 @@ static NSString *YTMThumbnail(id node) {
 }
 
 static NSUInteger YTMClockSeconds(NSString *value) {
-    NSArray *parts = [value componentsSeparatedByString:@":"];
+    NSArray *parts = [(YTMCleanText(value) ?: @"")
+                      componentsSeparatedByString:@":"];
     NSUInteger result = 0;
     for (NSString *part in parts) {
-        NSInteger n = [part integerValue];
+        NSInteger n = [(YTMCleanText(part) ?: @"") integerValue];
         if (n < 0 || n > 3600) return 0;
         result = result * 60u + (NSUInteger)n;
     }
@@ -106,15 +124,22 @@ static NSUInteger YTMClockSeconds(NSString *value) {
 }
 
 static BOOL YTMLooksLikeClock(NSString *value) {
-    NSArray *parts = [value componentsSeparatedByString:@":"];
+    NSArray *parts = [(YTMCleanText(value) ?: @"")
+                      componentsSeparatedByString:@":"];
     if ([parts count] < 2 || [parts count] > 3) return NO;
     NSCharacterSet *notDigits = [[NSCharacterSet decimalDigitCharacterSet] invertedSet];
     for (NSString *part in parts) {
-        if (![part length] || [part rangeOfCharacterFromSet:notDigits].location != NSNotFound)
+        NSString *clean = YTMCleanText(part);
+        if (![clean length] || [clean rangeOfCharacterFromSet:notDigits].location != NSNotFound)
             return NO;
     }
     NSUInteger seconds = [[parts lastObject] integerValue];
     return seconds < 60;
+}
+
+NSString *YTMDisplayArtist(NSString *artist) {
+    return YTMIsErrorText(artist) || YTMLooksLikeClock(artist)
+        ? @"Unknown artist" : artist;
 }
 
 static NSString *YTMFindClockText(id node) {
@@ -152,8 +177,21 @@ static YTMTrack *YTMTrackFromRenderer(NSDictionary *renderer) {
     if (!videoID || [texts count] == 0) return nil;
 
     NSString *title = [texts objectAtIndex:0];
-    NSString *artist = [texts count] > 1 ? [texts objectAtIndex:1] : @"Unknown artist";
-    NSString *album = [texts count] > 2 ? [texts objectAtIndex:2] : @"";
+    NSMutableArray *metadata = [NSMutableArray array];
+    for (NSUInteger index = 1; index < [texts count]; ++index) {
+        NSString *text = [texts objectAtIndex:index];
+        /* duration is a separate column in some responses, not the artist */
+        if (!YTMLooksLikeClock(text)) [metadata addObject:text];
+    }
+    NSUInteger artistIndex = 0;
+    while (artistIndex < metadata.count &&
+           YTMIsErrorText([metadata objectAtIndex:artistIndex])) {
+        ++artistIndex;
+    }
+    NSString *artist = artistIndex < metadata.count
+        ? [metadata objectAtIndex:artistIndex] : @"Unknown artist";
+    NSString *album = artistIndex + 1 < metadata.count
+        ? [metadata objectAtIndex:artistIndex + 1] : @"";
     NSArray *meta = [artist componentsSeparatedByString:@" • "];
     BOOL typeLabel = [artist caseInsensitiveCompare:@"Song"] == NSOrderedSame ||
                      [artist caseInsensitiveCompare:@"Video"] == NSOrderedSame ||
@@ -181,7 +219,7 @@ static YTMTrack *YTMTrackFromRenderer(NSDictionary *renderer) {
 
     return [[[YTMTrack alloc] initWithVideoID:videoID
                                         title:title
-                                       artist:artist
+                                       artist:YTMDisplayArtist(artist)
                                         album:album
                                 thumbnailURL:YTMThumbnail(renderer)
                                      duration:duration] autorelease];

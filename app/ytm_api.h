@@ -5,6 +5,7 @@
 
 /* keep a fallback for fresh installs; settings can replace it */
 FOUNDATION_EXPORT NSString * const YTMDefaultAPIKey;
+FOUNDATION_EXPORT NSString *YTMDisplayArtist(NSString *artist);
 
 @interface YTMTrack : NSObject {
     NSString *_videoID;
