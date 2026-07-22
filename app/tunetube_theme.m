@@ -12,6 +12,29 @@ static UIColor *TuneThemeColor(CGFloat darkRed, CGFloat darkGreen, CGFloat darkB
     return [UIColor colorWithRed:darkRed green:darkGreen blue:darkBlue alpha:1.0f];
 }
 
+static UIImage *TuneTubeNavigationBackgroundImage(void) {
+    CGSize size = CGSizeMake(1.0f, 44.0f);
+    UIGraphicsBeginImageContextWithOptions(size, YES, 0.0f);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    NSArray *colors = [NSArray arrayWithObjects:
+                       (id)TuneThemeNavigationTop().CGColor,
+                       (id)TuneThemeNavigationBottom().CGColor, nil];
+    CGFloat locations[] = {0.0f, 1.0f};
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGGradientRef gradient = CGGradientCreateWithColors(colorSpace,
+                                                        (CFArrayRef)colors,
+                                                        locations);
+    CGContextDrawLinearGradient(context, gradient,
+                                CGPointMake(0.0f, 0.0f),
+                                CGPointMake(0.0f, size.height),
+                                0);
+    CGGradientRelease(gradient);
+    CGColorSpaceRelease(colorSpace);
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return image;
+}
+
 BOOL TuneTubeThemeIsLight(void) {
     id value = [[NSUserDefaults standardUserDefaults]
                 objectForKey:TUNETUBE_LIGHT_THEME_DEFAULTS_KEY];
@@ -26,6 +49,40 @@ void TuneTubeThemeSetLight(BOOL light) {
     if (oldValue != light) {
         [[NSNotificationCenter defaultCenter]
          postNotificationName:TuneTubeThemeDidChangeNotification object:nil];
+    }
+}
+
+void TuneTubeStyleNavigationBar(UINavigationBar *bar) {
+    if (!bar) return;
+    bar.barStyle = UIBarStyleBlack;
+    bar.translucent = NO;
+    UIColor *buttonColor = TuneThemeAccent();
+    bar.tintColor = buttonColor;
+    SEL barTintSelector = NSSelectorFromString(@"setBarTintColor:");
+    if ([bar respondsToSelector:barTintSelector])
+        [bar performSelector:barTintSelector withObject:TuneThemeNavigationBottom()];
+    UIImage *background = TuneTubeNavigationBackgroundImage();
+    [bar setBackgroundImage:background forBarMetrics:UIBarMetricsDefault];
+    if ([bar respondsToSelector:@selector(setBackgroundImage:forBarMetrics:)])
+        [bar setBackgroundImage:background forBarMetrics:UIBarMetricsLandscapePhone];
+    bar.titleTextAttributes = [NSDictionary dictionaryWithObject:[UIColor whiteColor]
+                                                              forKey:UITextAttributeTextColor];
+    NSDictionary *buttonTitleAttributes =
+        [NSDictionary dictionaryWithObject:[UIColor whiteColor]
+                                    forKey:UITextAttributeTextColor];
+    for (UINavigationItem *item in bar.items) {
+        NSArray *buttons = [NSArray arrayWithObjects:
+                            item.leftBarButtonItem ?: [NSNull null],
+                            item.rightBarButtonItem ?: [NSNull null], nil];
+        for (id object in buttons) {
+            if (![object isKindOfClass:[UIBarButtonItem class]]) continue;
+            UIBarButtonItem *button = (UIBarButtonItem *)object;
+            button.tintColor = buttonColor;
+            [button setTitleTextAttributes:buttonTitleAttributes
+                                  forState:UIControlStateNormal];
+            [button setTitleTextAttributes:buttonTitleAttributes
+                                  forState:UIControlStateHighlighted];
+        }
     }
 }
 

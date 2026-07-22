@@ -49,12 +49,7 @@
 - (void)applyTheme:(NSNotification *)note {
     (void)note;
     self.view.backgroundColor = TuneThemeBackgroundBottom();
-    self.navigationController.navigationBar.barStyle = TuneTubeThemeIsLight()
-        ? UIBarStyleDefault : UIBarStyleBlack;
-    self.navigationController.navigationBar.tintColor = TuneThemeAccent();
-    self.navigationController.navigationBar.titleTextAttributes =
-        [NSDictionary dictionaryWithObject:TuneThemePrimaryText()
-                                     forKey:UITextAttributeTextColor];
+    TuneTubeStyleNavigationBar(self.navigationController.navigationBar);
     _backgroundGradient.colors = [NSArray arrayWithObjects:
                                   (id)TuneThemeBackgroundTop().CGColor,
                                   (id)TuneThemeBackgroundBottom().CGColor, nil];

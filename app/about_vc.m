@@ -34,12 +34,7 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"About";
-    self.navigationController.navigationBar.barStyle = TuneTubeThemeIsLight()
-        ? UIBarStyleDefault : UIBarStyleBlack;
-    self.navigationController.navigationBar.tintColor = TuneThemeAccent();
-    self.navigationController.navigationBar.titleTextAttributes =
-        [NSDictionary dictionaryWithObject:TuneThemePrimaryText()
-                                     forKey:UITextAttributeTextColor];
+    TuneTubeStyleNavigationBar(self.navigationController.navigationBar);
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(applyTheme:)
                                                  name:TuneTubeThemeDidChangeNotification
@@ -120,12 +115,7 @@
 - (void)applyTheme:(NSNotification *)note {
     (void)note;
     self.view.backgroundColor = TuneThemeBackgroundBottom();
-    self.navigationController.navigationBar.barStyle = TuneTubeThemeIsLight()
-        ? UIBarStyleDefault : UIBarStyleBlack;
-    self.navigationController.navigationBar.tintColor = TuneThemeAccent();
-    self.navigationController.navigationBar.titleTextAttributes =
-        [NSDictionary dictionaryWithObject:TuneThemePrimaryText()
-                                     forKey:UITextAttributeTextColor];
+    TuneTubeStyleNavigationBar(self.navigationController.navigationBar);
     _backgroundGradient.colors = [NSArray arrayWithObjects:
                                   (id)TuneThemeBackgroundTop().CGColor,
                                   (id)TuneThemeHeader().CGColor,

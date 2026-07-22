@@ -8,6 +8,7 @@ extern NSString * const TuneTubeFocusSearchNotification;
 
 BOOL TuneTubeThemeIsLight(void);
 void TuneTubeThemeSetLight(BOOL light);
+void TuneTubeStyleNavigationBar(UINavigationBar *bar);
 
 UIColor *TuneThemeBackgroundTop(void);
 UIColor *TuneThemeBackgroundBottom(void);
