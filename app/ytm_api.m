@@ -5,6 +5,7 @@
 static NSString * const YTMErrorDomain = @"com.sqmrak.tunetube.api";
 static NSString * const YTMEndpoint = @"https://music.youtube.com/youtubei/v1";
 static NSString * const YTMEndpointFallback = @"https://youtubei.googleapis.com/youtubei/v1";
+static NSString * const YTMEndpointWebFallback = @"https://www.youtube.com/youtubei/v1";
 static NSString * const YTMClientName = @"WEB_REMIX";
 static NSString * const YTMClientVersion = @"1.20260707.12.00";
 static NSString * const YTMPlayerEndpoint = @"https://www.youtube.com/youtubei/v1";
@@ -390,7 +391,6 @@ static NSURLRequest *YTMRequest(NSString *path, NSString *apiKey, NSDictionary *
 typedef void (^YTMNetworkCompletion)(NSData *data, NSError *error);
 
 static BOOL YTMShouldTryFallback(NSError *error) {
-    if (![error.domain isEqualToString:NSURLErrorDomain]) return NO;
     switch (error.code) {
         case NSURLErrorCannotFindHost:
         case NSURLErrorDNSLookupFailed:
@@ -500,12 +500,18 @@ static void YTMDecodeResponse(NSData *data, void (^completion)(id root, NSError 
         YTMClientVersion,
         @"Mozilla/5.0 (iPhone; CPU iPhone OS 6_0 like Mac OS X) AppleWebKit/534.46 Mobile/9A334 Safari/7534.48.3",
         @"search", _apiKey, body, &fallbackError);
+    NSError *webFallbackError = nil;
+    NSURLRequest *webFallbackRequest = YTMRequestForEndpoint(
+        YTMEndpointWebFallback, @"https://www.youtube.com", @"67",
+        YTMClientVersion,
+        @"Mozilla/5.0 (iPhone; CPU iPhone OS 6_0 like Mac OS X) AppleWebKit/534.46 Mobile/9A334 Safari/7534.48.3",
+        @"search", _apiKey, body, &webFallbackError);
     if (!request) {
         completion(nil, error);
         return;
     }
 
-    YTMSendRequest(request, fallbackRequest, ^(NSData *data, NSError *networkError) {
+    void (^finish)(NSData *, NSError *) = ^(NSData *data, NSError *networkError) {
         if (networkError) {
             completion(nil, networkError);
             return;
@@ -523,6 +529,14 @@ static void YTMDecodeResponse(NSData *data, void (^completion)(id root, NSError 
             }
             completion(tracks, nil);
         });
+    };
+
+    YTMSendRequest(request, fallbackRequest, ^(NSData *data, NSError *networkError) {
+        if (networkError && webFallbackRequest && YTMShouldTryFallback(networkError)) {
+            YTMSendRequest(webFallbackRequest, nil, finish);
+            return;
+        }
+        finish(data, networkError);
     });
 }
 
