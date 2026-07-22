@@ -120,10 +120,13 @@ static UIImage *TunePlayerSearchImage(CGFloat size) {
 @end
 
 static void PlayerStyleVolumeView(MPVolumeView *volumeView) {
+    UIColor *volumeThumbColor = TuneTubeThemeIsLight()
+        ? [UIColor colorWithWhite:0.96f alpha:1.0f]
+        : [UIColor colorWithWhite:0.58f alpha:1.0f];
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(28.0f, 28.0f), NO, 0.0f);
     CGContextRef thumbContext = UIGraphicsGetCurrentContext();
     CGContextSetFillColorWithColor(thumbContext,
-                                   [UIColor colorWithWhite:0.58f alpha:1.0f].CGColor);
+                                   volumeThumbColor.CGColor);
     CGContextFillEllipseInRect(thumbContext, CGRectMake(2.0f, 2.0f, 24.0f, 24.0f));
     CGContextSetStrokeColorWithColor(thumbContext, TuneThemeBorder().CGColor);
     CGContextSetLineWidth(thumbContext, 1.0f);
@@ -141,10 +144,11 @@ static void PlayerStyleVolumeView(MPVolumeView *volumeView) {
         [slider setThumbImage:volumeThumb forState:UIControlStateNormal];
         [slider setThumbImage:volumeThumb forState:UIControlStateHighlighted];
         if ([slider respondsToSelector:@selector(setThumbTintColor:)])
-            slider.thumbTintColor = TuneThemePrimaryText();
+            slider.thumbTintColor = volumeThumbColor;
         if (volumeView.bounds.size.height > 0.0f && slider.frame.size.height > 0.0f) {
             CGRect frame = slider.frame;
-            frame.origin.y = floorf((volumeView.bounds.size.height - frame.size.height) * 0.5f);
+            frame.origin.y = 0.0f;
+            frame.size.height = volumeView.bounds.size.height;
             slider.frame = frame;
         }
         break;
@@ -169,7 +173,9 @@ static void PlayerStyleSlider(UISlider *slider) {
         slider.maximumTrackTintColor = TuneThemeMutedText();
     }
     if ([slider respondsToSelector:@selector(setThumbTintColor:)])
-        slider.thumbTintColor = TuneThemePrimaryText();
+        slider.thumbTintColor = TuneTubeThemeIsLight()
+            ? [UIColor colorWithWhite:0.96f alpha:1.0f]
+            : TuneThemePrimaryText();
 }
 
 static BOOL PlayerIsPad(void) {
@@ -451,6 +457,11 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
     _artistLabel.textColor = TuneThemeSecondaryText();
     _elapsedLabel.textColor = TuneThemeMutedText();
     _durationLabel.textColor = TuneThemeMutedText();
+    [_previousButton applyTheme];
+    [_nextButton applyTheme];
+    [_repeatButton applyTheme];
+    [_favoriteButton applyTheme];
+    [_playButton applyTheme];
     PlayerStyleSlider(_progress);
     PlayerStyleVolumeView(_volumeView);
     [self.view setNeedsLayout];

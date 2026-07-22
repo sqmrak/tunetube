@@ -24,11 +24,15 @@ static NSArray *TuneTubeTracksFromEntries(NSArray *saved) {
         if (![entry isKindOfClass:[NSDictionary class]]) continue;
         NSString *videoID = [entry objectForKey:@"id"];
         if (!videoID.length) continue;
+        NSString *savedArtist = [entry objectForKey:@"artist"];
+        NSString *savedAlbum = [entry objectForKey:@"album"] ?: @"";
+        if ([savedArtist caseInsensitiveCompare:@"Unknown artist"] == NSOrderedSame)
+            savedAlbum = @"";
         YTMTrack *track = [[[YTMTrack alloc]
                             initWithVideoID:videoID
                             title:[entry objectForKey:@"title"] ?: @"Untitled"
-                            artist:YTMDisplayArtist([entry objectForKey:@"artist"])
-                            album:[entry objectForKey:@"album"] ?: @""
+                            artist:YTMDisplayArtist(savedArtist)
+                            album:savedAlbum
                             thumbnailURL:[entry objectForKey:@"thumbnail"] ?: @""
                             duration:[[entry objectForKey:@"duration"] unsignedIntegerValue]] autorelease];
         [tracks addObject:track];

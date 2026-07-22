@@ -36,6 +36,10 @@ static UIImage *TuneButtonImage(NSString *name) {
     [self updateButtonImage];
 }
 
+- (void)applyTheme {
+    [self updateButtonImage];
+}
+
 - (void)updateButtonImage {
     NSString *name;
     if (_lightStyle)
@@ -72,8 +76,12 @@ static UIImage *TuneButtonImage(NSString *name) {
     [self updateButtonImage];
 }
 
+- (void)applyTheme {
+    [self updateButtonImage];
+}
+
 - (void)updateButtonImage {
-    NSString *name;
+    NSString *name = nil;
     switch (_kind) {
         case TuneRoundButtonKindPrevious:
             name = @"player-previous.png";

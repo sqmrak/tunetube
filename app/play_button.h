@@ -11,6 +11,7 @@
 @property(nonatomic, readonly, getter=isPlaying) BOOL playing;
 - (void)setPlaying:(BOOL)playing;
 - (void)setLightStyle:(BOOL)lightStyle;
+- (void)applyTheme;
 
 @end
 
@@ -29,6 +30,7 @@ typedef enum {
 
 - (id)initWithKind:(TuneRoundButtonKind)kind;
 - (void)setActive:(BOOL)active;
+- (void)applyTheme;
 
 @end
 

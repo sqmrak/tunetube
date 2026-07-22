@@ -533,6 +533,8 @@ static NSString *TunePlaybackErrorText(NSError *error) {
 
     _miniPlayer.backgroundColor = TuneThemeSurface();
     _miniPlayer.layer.borderColor = TuneThemeBorder().CGColor;
+    [_favoriteButton applyTheme];
+    [_playButton applyTheme];
     _miniPlayerGradient.colors = [NSArray arrayWithObjects:
                                   (id)TuneThemeSurfaceTop().CGColor,
                                   (id)TuneThemeSurfaceBottom().CGColor, nil];

@@ -35,6 +35,12 @@ static UIImage *TuneTubeNavigationBackgroundImage(void) {
     return image;
 }
 
+static UIColor *TuneThemeNavigationButtonColor(void) {
+    return TuneTubeThemeIsLight()
+        ? TuneThemeAccent()
+        : [UIColor colorWithRed:0.82f green:0.20f blue:0.23f alpha:1.0f];
+}
+
 BOOL TuneTubeThemeIsLight(void) {
     id value = [[NSUserDefaults standardUserDefaults]
                 objectForKey:TUNETUBE_LIGHT_THEME_DEFAULTS_KEY];
@@ -56,7 +62,7 @@ void TuneTubeStyleNavigationBar(UINavigationBar *bar) {
     if (!bar) return;
     bar.barStyle = UIBarStyleBlack;
     bar.translucent = NO;
-    UIColor *buttonColor = TuneThemeAccent();
+    UIColor *buttonColor = TuneThemeNavigationButtonColor();
     bar.tintColor = buttonColor;
     SEL barTintSelector = NSSelectorFromString(@"setBarTintColor:");
     if ([bar respondsToSelector:barTintSelector])

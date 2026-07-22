@@ -45,26 +45,38 @@ static BOOL YTMIsErrorText(NSString *value) {
            [text rangeOfString:@"nsurlerrordomain"].location != NSNotFound;
 }
 
+static BOOL YTMIsPlaceholderArtist(NSString *value) {
+    NSString *text = [[YTMCleanText(value) lowercaseString]
+                      stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    return [text isEqualToString:@"unknown artist"];
+}
+
 static NSString *YTMText(id node) {
     if ([node isKindOfClass:[NSString class]]) return YTMCleanText(node);
     if (![node isKindOfClass:[NSDictionary class]]) return nil;
 
-    NSString *simple = YTMString([(NSDictionary *)node objectForKey:@"simpleText"]);
+    NSDictionary *dict = (NSDictionary *)node;
+    NSString *simple = YTMString([dict objectForKey:@"simpleText"]);
     if (simple) return YTMCleanText(simple);
 
-    NSArray *runs = [(NSDictionary *)node objectForKey:@"runs"];
+    NSArray *runs = [dict objectForKey:@"runs"];
     if ([runs isKindOfClass:[NSArray class]]) {
         NSMutableString *text = [NSMutableString string];
         for (id run in runs) {
-            NSString *part = [run isKindOfClass:[NSDictionary class]]
-                ? YTMString([run objectForKey:@"text"]) : nil;
+            NSString *part = YTMText(run);
             if (part) [text appendString:part];
         }
         if ([text length] > 0) return YTMCleanText(text);
     }
 
-    NSString *value = YTMString([(NSDictionary *)node objectForKey:@"text"]);
+    NSString *value = YTMText([dict objectForKey:@"text"]);
     if (value) return YTMCleanText(value);
+
+    NSDictionary *accessibility = [dict objectForKey:@"accessibility"];
+    NSDictionary *accessibilityData = [accessibility objectForKey:@"accessibilityData"];
+    NSString *label = YTMString([accessibilityData objectForKey:@"label"]);
+    if (label) return YTMCleanText(label);
+
     return nil;
 }
 
@@ -137,9 +149,59 @@ static BOOL YTMLooksLikeClock(NSString *value) {
     return seconds < 60;
 }
 
+static BOOL YTMIsTypeLabel(NSString *value) {
+    return [value caseInsensitiveCompare:@"Song"] == NSOrderedSame ||
+           [value caseInsensitiveCompare:@"Video"] == NSOrderedSame ||
+           [value caseInsensitiveCompare:@"Album"] == NSOrderedSame;
+}
+
+static BOOL YTMIsCountText(NSString *value) {
+    NSString *text = [[YTMCleanText(value) lowercaseString]
+                      stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+    return [text hasSuffix:@" view"] || [text hasSuffix:@" views"] ||
+           [text hasSuffix:@" play"] || [text hasSuffix:@" plays"];
+}
+
+static NSString *YTMArtistFromMetadataText(NSString *value) {
+    NSString *clean = YTMCleanText(value);
+    if (!clean || YTMIsErrorText(clean) || YTMIsPlaceholderArtist(clean) ||
+        YTMLooksLikeClock(clean) ||
+        YTMIsCountText(clean)) return nil;
+
+    NSArray *parts = [clean componentsSeparatedByString:@"•"];
+    if ([parts count] > 1) {
+        BOOL typeLabel = YTMIsTypeLabel(YTMCleanText([parts objectAtIndex:0]));
+        NSString *artist = YTMCleanText([parts objectAtIndex:typeLabel ? 1 : 0]);
+        if (!artist || YTMIsErrorText(artist) || YTMIsPlaceholderArtist(artist) ||
+            YTMLooksLikeClock(artist) ||
+            YTMIsCountText(artist)) return nil;
+        return artist;
+    }
+
+    return YTMIsTypeLabel(clean) ? nil : clean;
+}
+
+static NSString *YTMAlbumFromMetadataText(NSString *value) {
+    NSString *clean = YTMCleanText(value);
+    if (!clean) return nil;
+
+    NSArray *parts = [clean componentsSeparatedByString:@"•"];
+    if ([parts count] < 2) return nil;
+
+    BOOL typeLabel = YTMIsTypeLabel(YTMCleanText([parts objectAtIndex:0]));
+    NSUInteger albumIndex = typeLabel ? 2 : 1;
+    if ([parts count] <= albumIndex)
+        return nil;
+
+    NSString *album = YTMCleanText([parts objectAtIndex:albumIndex]);
+    return YTMIsErrorText(album) || YTMLooksLikeClock(album) || YTMIsCountText(album)
+        ? nil : album;
+}
+
 NSString *YTMDisplayArtist(NSString *artist) {
-    return YTMIsErrorText(artist) || YTMLooksLikeClock(artist)
-        ? @"Unknown artist" : artist;
+    if (!artist.length || YTMIsPlaceholderArtist(artist)) return @"Unknown artist";
+    NSString *displayArtist = YTMArtistFromMetadataText(artist);
+    return displayArtist ?: @"Unknown artist";
 }
 
 static NSString *YTMFindClockText(id node) {
@@ -183,34 +245,27 @@ static YTMTrack *YTMTrackFromRenderer(NSDictionary *renderer) {
         /* duration is a separate column in some responses, not the artist */
         if (!YTMLooksLikeClock(text)) [metadata addObject:text];
     }
-    NSUInteger artistIndex = 0;
-    while (artistIndex < metadata.count &&
-           YTMIsErrorText([metadata objectAtIndex:artistIndex])) {
-        ++artistIndex;
+    NSUInteger artistIndex = NSNotFound;
+    NSString *artist = nil;
+    NSString *album = @"";
+    for (NSUInteger index = 0; index < metadata.count; ++index) {
+        NSString *candidate = YTMArtistFromMetadataText([metadata objectAtIndex:index]);
+        if (!candidate) continue;
+        artist = candidate;
+        artistIndex = index;
+        album = YTMAlbumFromMetadataText([metadata objectAtIndex:index]) ?: @"";
+        break;
     }
-    NSString *artist = artistIndex < metadata.count
-        ? [metadata objectAtIndex:artistIndex] : @"Unknown artist";
-    NSString *album = artistIndex + 1 < metadata.count
-        ? [metadata objectAtIndex:artistIndex + 1] : @"";
-    NSArray *meta = [artist componentsSeparatedByString:@" • "];
-    BOOL typeLabel = [artist caseInsensitiveCompare:@"Song"] == NSOrderedSame ||
-                     [artist caseInsensitiveCompare:@"Video"] == NSOrderedSame ||
-                     [artist caseInsensitiveCompare:@"Album"] == NSOrderedSame;
-    if (typeLabel && [album length]) {
-        artist = album;
-        album = @"";
-    } else if ([meta count] > 1) {
-        if ([[meta objectAtIndex:0] caseInsensitiveCompare:@"Song"] == NSOrderedSame ||
-            [[meta objectAtIndex:0] caseInsensitiveCompare:@"Video"] == NSOrderedSame) {
-            artist = [meta objectAtIndex:1];
-            if ([album length] == 0 && [meta count] > 2)
-                album = [meta objectAtIndex:2];
-        } else {
-            artist = [meta objectAtIndex:0];
-            if ([album length] == 0)
-                album = [meta objectAtIndex:1];
+    if (artistIndex != NSNotFound && !album.length) {
+        for (NSUInteger index = artistIndex + 1; index < metadata.count; ++index) {
+            NSString *candidate = YTMArtistFromMetadataText([metadata objectAtIndex:index]);
+            if (candidate && ![candidate isEqualToString:artist]) {
+                album = candidate;
+                break;
+            }
         }
     }
+    if (!artist.length) artist = @"";
 
     NSUInteger duration = 0;
     NSString *clock = YTMFindClockText(renderer);
