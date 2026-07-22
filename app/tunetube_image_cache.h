@@ -1,5 +1,5 @@
-#ifndef TUNTUBE_IMAGE_CACHE_H
-#define TUNTUBE_IMAGE_CACHE_H
+#ifndef TUNETUBE_IMAGE_CACHE_H
+#define TUNETUBE_IMAGE_CACHE_H
 
 #import <UIKit/UIKit.h>
 

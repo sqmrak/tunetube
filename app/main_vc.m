@@ -8,19 +8,16 @@
 #import "player_vc.h"
 #import "library_vc.h"
 #import "play_button.h"
-#import "tuntube_config.h"
-#import "tuntube_image_cache.h"
+#import "tunetube_config.h"
+#import "tunetube_image_cache.h"
+#import "tunetube_theme.h"
 
-static UIColor *TuneColor(CGFloat red, CGFloat green, CGFloat blue, CGFloat alpha) {
-    return [UIColor colorWithRed:red green:green blue:blue alpha:alpha];
-}
-
-static UIImage *TuneWhiteMaskImage(UIImage *mask) {
+static UIImage *TuneMaskImage(UIImage *mask, UIColor *color) {
     if (!mask) return nil;
     UIGraphicsBeginImageContextWithOptions(mask.size, NO, mask.scale);
     CGRect rect = CGRectMake(0.0f, 0.0f, mask.size.width, mask.size.height);
     CGContextRef context = UIGraphicsGetCurrentContext();
-    CGContextSetFillColorWithColor(context, [UIColor whiteColor].CGColor);
+    CGContextSetFillColorWithColor(context, color.CGColor);
     CGContextFillRect(context, rect);
     [mask drawInRect:rect blendMode:kCGBlendModeDestinationIn alpha:1.0f];
     UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
@@ -31,8 +28,7 @@ static UIImage *TuneWhiteMaskImage(UIImage *mask) {
 static UIImage *TuneLibraryImage(CGFloat size) {
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(size, size), NO, 0.0f);
     CGContextRef context = UIGraphicsGetCurrentContext();
-    UIColor *color = [UIColor whiteColor];
-    CGContextSetStrokeColorWithColor(context, color.CGColor);
+    CGContextSetStrokeColorWithColor(context, [UIColor whiteColor].CGColor);
     CGContextSetLineWidth(context, MAX(1.3f, size * 0.075f));
     CGContextSetLineJoin(context, kCGLineJoinRound);
     CGContextSetLineCap(context, kCGLineCapRound);
@@ -50,6 +46,15 @@ static UIImage *TuneLibraryImage(CGFloat size) {
     UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
     return image;
+}
+
+static NSString *TunePlaybackErrorText(NSError *error) {
+    NSString *text = [error localizedDescription];
+    NSString *lower = [text lowercaseString];
+    if ([lower rangeOfString:@"operation could not be completed"].location != NSNotFound ||
+        [lower rangeOfString:@"nsurlerrordomain"].location != NSNotFound)
+        return @"couldn't load this song";
+    return text;
 }
 
 @interface TuneTrackCell : UITableViewCell {
@@ -72,6 +77,17 @@ static UIImage *TuneLibraryImage(CGFloat size) {
     return _imageURL;
 }
 
+- (void)applyTheme {
+    _card.layer.borderColor = TuneThemeBorder().CGColor;
+    _cardGradient.colors = [NSArray arrayWithObjects:
+                            (id)TuneThemeSurfaceTop().CGColor,
+                            (id)TuneThemeSurfaceBottom().CGColor, nil];
+    _artwork.backgroundColor = TuneThemeSurface();
+    _titleLabel.textColor = TuneThemePrimaryText();
+    _artistLabel.textColor = TuneThemeSecondaryText();
+    _durationLabel.textColor = TuneThemeMutedText();
+}
+
 - (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier {
     self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
     if (!self) return nil;
@@ -83,7 +99,7 @@ static UIImage *TuneLibraryImage(CGFloat size) {
     _card = [[UIView alloc] initWithFrame:CGRectZero];
     _card.layer.cornerRadius = 10.0f;
     _card.layer.borderWidth = 1.0f;
-    _card.layer.borderColor = TuneColor(0.25f, 0.42f, 0.45f, 0.38f).CGColor;
+    _card.layer.borderColor = TuneThemeBorder().CGColor;
     _card.layer.shadowColor = [UIColor blackColor].CGColor;
     _card.layer.shadowOpacity = 0.38f;
     _card.layer.shadowOffset = CGSizeMake(0.0f, 2.0f);
@@ -93,13 +109,13 @@ static UIImage *TuneLibraryImage(CGFloat size) {
     _cardGradient = [[CAGradientLayer layer] retain];
     _cardGradient.cornerRadius = 10.0f;
     _cardGradient.colors = [NSArray arrayWithObjects:
-                            (id)TuneColor(0.11f, 0.20f, 0.22f, 1.0f).CGColor,
-                            (id)TuneColor(0.04f, 0.09f, 0.11f, 1.0f).CGColor, nil];
+                            (id)TuneThemeSurfaceTop().CGColor,
+                            (id)TuneThemeSurfaceBottom().CGColor, nil];
     [_card.layer insertSublayer:_cardGradient atIndex:0];
     [self.contentView addSubview:_card];
 
     _artwork = [[UIImageView alloc] initWithFrame:CGRectZero];
-    _artwork.backgroundColor = TuneColor(0.12f, 0.19f, 0.20f, 1.0f);
+    _artwork.backgroundColor = TuneThemeSurface();
     _artwork.layer.cornerRadius = 7.0f;
     _artwork.layer.masksToBounds = YES;
     _artwork.contentMode = UIViewContentModeScaleAspectFill;
@@ -108,21 +124,21 @@ static UIImage *TuneLibraryImage(CGFloat size) {
 
     _titleLabel = [[UILabel alloc] initWithFrame:CGRectZero];
     _titleLabel.backgroundColor = [UIColor clearColor];
-    _titleLabel.textColor = [UIColor whiteColor];
+    _titleLabel.textColor = TuneThemePrimaryText();
     _titleLabel.font = [UIFont boldSystemFontOfSize:15.0f];
     _titleLabel.lineBreakMode = UILineBreakModeTailTruncation;
     [_card addSubview:_titleLabel];
 
     _artistLabel = [[UILabel alloc] initWithFrame:CGRectZero];
     _artistLabel.backgroundColor = [UIColor clearColor];
-    _artistLabel.textColor = TuneColor(0.68f, 0.76f, 0.76f, 1.0f);
+    _artistLabel.textColor = TuneThemeSecondaryText();
     _artistLabel.font = [UIFont systemFontOfSize:13.0f];
     _artistLabel.lineBreakMode = UILineBreakModeTailTruncation;
     [_card addSubview:_artistLabel];
 
     _durationLabel = [[UILabel alloc] initWithFrame:CGRectZero];
     _durationLabel.backgroundColor = [UIColor clearColor];
-    _durationLabel.textColor = TuneColor(0.53f, 0.66f, 0.67f, 1.0f);
+    _durationLabel.textColor = TuneThemeMutedText();
     _durationLabel.font = [UIFont systemFontOfSize:11.0f];
     _durationLabel.textAlignment = NSTextAlignmentRight;
     [_card addSubview:_durationLabel];
@@ -151,12 +167,14 @@ static UIImage *TuneLibraryImage(CGFloat size) {
 }
 
 - (void)configureWithTrack:(YTMTrack *)track {
+    [self applyTheme];
     [_imageURL release];
     _imageURL = [track.thumbnailURL copy];
     _titleLabel.text = track.title;
-    _artistLabel.text = track.artist;
+    _artistLabel.text = YTMDisplayArtist(track.artist);
     if (track.album.length)
-        _artistLabel.text = [NSString stringWithFormat:@"%@  ·  %@", track.artist, track.album];
+        _artistLabel.text = [NSString stringWithFormat:@"%@  ·  %@",
+                             YTMDisplayArtist(track.artist), track.album];
 
     NSUInteger seconds = track.duration;
     if (seconds) {
@@ -196,6 +214,9 @@ static UIImage *TuneLibraryImage(CGFloat size) {
 - (void)refreshPlayerUI:(NSNotification *)note;
 - (void)loadQuickPicks;
 - (void)settingsPressed;
+- (void)focusSearch:(NSNotification *)note;
+- (void)applyTheme:(NSNotification *)note;
+- (void)appDidBecomeActive:(NSNotification *)note;
 - (void)favoritePressed;
 - (void)libraryPressed;
 - (void)playerPressed;
@@ -211,13 +232,14 @@ static UIImage *TuneLibraryImage(CGFloat size) {
     [_backgroundGradient release];
     [_search release];
     [_libraryButton release];
-    [_settingsButton release];
+    [_optionsButton release];
     [_brandLabel release];
     [_taglineLabel release];
     [_sectionTitle release];
     [_table release];
     [_status release];
     [_miniPlayer release];
+    [_miniPlayerGradient release];
     [_miniArtwork release];
     [_nowTitle release];
     [_nowArtist release];
@@ -228,30 +250,41 @@ static UIImage *TuneLibraryImage(CGFloat size) {
 
 - (void)loadView {
     UIView *view = [[[UIView alloc] initWithFrame:[[UIScreen mainScreen] bounds]] autorelease];
-    view.backgroundColor = TuneColor(0.02f, 0.06f, 0.08f, 1.0f);
+    view.backgroundColor = TuneThemeBackgroundBottom();
     self.view = view;
 }
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    self.title = @"TuneTube";
+    self.navigationController.navigationBarHidden = NO;
+    self.navigationItem.leftBarButtonItem =
+        [[[UIBarButtonItem alloc] initWithTitle:@"Library"
+                                          style:UIBarButtonItemStyleBordered
+                                         target:self
+                                         action:@selector(libraryPressed)] autorelease];
+    self.navigationItem.rightBarButtonItem =
+        [[[UIBarButtonItem alloc] initWithTitle:@"Settings"
+                                          style:UIBarButtonItemStyleBordered
+                                         target:self
+                                         action:@selector(settingsPressed)] autorelease];
     _tracks = [[NSMutableArray alloc] init];
 
     _backgroundGradient = [[CAGradientLayer layer] retain];
     _backgroundGradient.colors = [NSArray arrayWithObjects:
-                                  (id)TuneColor(0.03f, 0.20f, 0.22f, 1.0f).CGColor,
-                                  (id)TuneColor(0.02f, 0.06f, 0.08f, 1.0f).CGColor,
-                                  (id)TuneColor(0.00f, 0.01f, 0.02f, 1.0f).CGColor, nil];
-    _backgroundGradient.locations = [NSArray arrayWithObjects:@0.0f, @0.42f, @1.0f, nil];
+                                  (id)TuneThemeBackgroundTop().CGColor,
+                                  (id)TuneThemeBackgroundBottom().CGColor, nil];
+    _backgroundGradient.locations = [NSArray arrayWithObjects:@0.0f, @1.0f, nil];
     [self.view.layer insertSublayer:(CAGradientLayer *)_backgroundGradient atIndex:0];
 
     NSString *key = [[NSUserDefaults standardUserDefaults]
-                     objectForKey:TUNTUBE_API_KEY_DEFAULTS_KEY];
+                     objectForKey:TUNETUBE_API_KEY_DEFAULTS_KEY];
     _api = [[YTMAPI alloc] initWithAPIKey:key.length ? key : YTMDefaultAPIKey];
     _player = [[YTMPlayer alloc] init];
 
     _brandLabel = [[UILabel alloc] initWithFrame:CGRectZero];
     _brandLabel.backgroundColor = [UIColor clearColor];
-    _brandLabel.textColor = [UIColor whiteColor];
+    _brandLabel.textColor = TuneThemePrimaryText();
     _brandLabel.font = [UIFont boldSystemFontOfSize:25.0f];
     _brandLabel.text = @"TuneTube";
     _brandLabel.shadowColor = [UIColor colorWithWhite:0 alpha:0.65f];
@@ -260,61 +293,71 @@ static UIImage *TuneLibraryImage(CGFloat size) {
 
     _taglineLabel = [[UILabel alloc] initWithFrame:CGRectZero];
     _taglineLabel.backgroundColor = [UIColor clearColor];
-    _taglineLabel.textColor = TuneColor(0.62f, 0.80f, 0.80f, 1.0f);
+    _taglineLabel.textColor = TuneThemeSecondaryText();
     _taglineLabel.font = [UIFont systemFontOfSize:10.0f];
-    _taglineLabel.text = @"YOUR MUSIC ROOM";
+    _taglineLabel.text = @"LEGACY YOUTUBE MUSIC";
+    _brandLabel.hidden = YES;
+    _taglineLabel.hidden = YES;
     [self.view addSubview:_taglineLabel];
 
     _libraryButton = [[UIButton buttonWithType:UIButtonTypeCustom] retain];
-    [_libraryButton setImage:TuneLibraryImage(22.0f) forState:UIControlStateNormal];
+    [_libraryButton setImage:TuneMaskImage(TuneLibraryImage(24.0f), TuneThemePrimaryText())
+                    forState:UIControlStateNormal];
     _libraryButton.accessibilityLabel = @"Library";
-    _libraryButton.imageView.contentMode = UIViewContentModeScaleAspectFit;
-    _libraryButton.imageEdgeInsets = UIEdgeInsetsMake(8.0f, 8.0f, 8.0f, 8.0f);
-    _libraryButton.layer.cornerRadius = 19.0f;
+    _libraryButton.hidden = YES;
+    _libraryButton.imageEdgeInsets = UIEdgeInsetsMake(5.0f, 5.0f, 5.0f, 5.0f);
+    _libraryButton.layer.cornerRadius = 8.0f;
     _libraryButton.layer.borderWidth = 1.0f;
-    _libraryButton.layer.borderColor = TuneColor(0.35f, 0.61f, 0.62f, 0.5f).CGColor;
-    _libraryButton.backgroundColor = TuneColor(0.04f, 0.13f, 0.15f, 0.8f);
+    _libraryButton.layer.borderColor = TuneThemeBorder().CGColor;
+    _libraryButton.backgroundColor = TuneThemeSurface();
+    _libraryButton.layer.shadowColor = [UIColor blackColor].CGColor;
+    _libraryButton.layer.shadowOpacity = 0.24f;
+    _libraryButton.layer.shadowOffset = CGSizeMake(0.0f, 2.0f);
+    _libraryButton.layer.shadowRadius = 1.5f;
     [_libraryButton addTarget:self action:@selector(libraryPressed)
              forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:_libraryButton];
 
-    _settingsButton = [[UIButton buttonWithType:UIButtonTypeCustom] retain];
+    _optionsButton = [[UIButton buttonWithType:UIButtonTypeCustom] retain];
     UIImage *settingsImage = [UIImage imageNamed:@"icon-settings.png"];
     if (settingsImage)
-        [_settingsButton setImage:TuneWhiteMaskImage(settingsImage) forState:UIControlStateNormal];
+        [_optionsButton setImage:TuneMaskImage(settingsImage, TuneThemePrimaryText())
+                        forState:UIControlStateNormal];
     else
-        [_settingsButton setTitle:@"⚙" forState:UIControlStateNormal];
-    _settingsButton.accessibilityLabel = @"Settings";
-    _settingsButton.imageView.contentMode = UIViewContentModeScaleAspectFit;
-    _settingsButton.imageEdgeInsets = UIEdgeInsetsMake(9.0f, 9.0f, 9.0f, 9.0f);
-    _settingsButton.layer.cornerRadius = 19.0f;
-    _settingsButton.layer.borderWidth = 1.0f;
-    _settingsButton.layer.borderColor = TuneColor(0.35f, 0.61f, 0.62f, 0.5f).CGColor;
-    _settingsButton.backgroundColor = TuneColor(0.04f, 0.13f, 0.15f, 0.8f);
-    [_settingsButton addTarget:self
-                        action:@selector(settingsPressed)
-              forControlEvents:UIControlEventTouchUpInside];
-    [self.view addSubview:_settingsButton];
+        [_optionsButton setTitle:@"⚙" forState:UIControlStateNormal];
+    _optionsButton.accessibilityLabel = @"Settings";
+    _optionsButton.hidden = YES;
+    _optionsButton.imageEdgeInsets = UIEdgeInsetsMake(6.0f, 6.0f, 6.0f, 6.0f);
+    _optionsButton.layer.cornerRadius = 8.0f;
+    _optionsButton.layer.borderWidth = 1.0f;
+    _optionsButton.layer.borderColor = TuneThemeBorder().CGColor;
+    _optionsButton.backgroundColor = TuneThemeSurface();
+    [_optionsButton addTarget:self action:@selector(settingsPressed)
+             forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:_optionsButton];
 
     _search = [[UISearchBar alloc] initWithFrame:CGRectZero];
     _search.placeholder = @"Search songs, artists and albums";
     _search.delegate = self;
-    _search.barStyle = UIBarStyleBlackTranslucent;
-    _search.tintColor = TuneColor(0.94f, 0.10f, 0.08f, 1.0f);
+    _search.barStyle = TuneTubeThemeIsLight() ? UIBarStyleDefault : UIBarStyleBlackTranslucent;
+    _search.tintColor = TuneThemeAccent();
+    _search.backgroundColor = TuneThemeSearchBackground();
     _search.layer.cornerRadius = 8.0f;
+    _search.layer.borderWidth = 1.0f;
+    _search.layer.borderColor = TuneThemeBorder().CGColor;
     _search.layer.masksToBounds = YES;
     [self.view addSubview:_search];
 
     _sectionTitle = [[UILabel alloc] initWithFrame:CGRectZero];
     _sectionTitle.backgroundColor = [UIColor clearColor];
-    _sectionTitle.textColor = TuneColor(0.78f, 0.89f, 0.88f, 1.0f);
+    _sectionTitle.textColor = TuneThemePrimaryText();
     _sectionTitle.font = [UIFont boldSystemFontOfSize:12.0f];
     _sectionTitle.text = @"QUICK PICKS";
     [self.view addSubview:_sectionTitle];
 
     _status = [[UILabel alloc] initWithFrame:CGRectZero];
     _status.backgroundColor = [UIColor clearColor];
-    _status.textColor = TuneColor(0.55f, 0.70f, 0.70f, 1.0f);
+    _status.textColor = TuneThemeMutedText();
     _status.font = [UIFont systemFontOfSize:11.0f];
     _status.text = @"";
     _status.textAlignment = NSTextAlignmentRight;
@@ -332,9 +375,10 @@ static UIImage *TuneLibraryImage(CGFloat size) {
     [self.view addSubview:_table];
 
     _miniPlayer = [[UIControl alloc] initWithFrame:CGRectZero];
-    _miniPlayer.backgroundColor = TuneColor(0.05f, 0.09f, 0.10f, 0.97f);
+    _miniPlayer.backgroundColor = TuneThemeSurface();
+    _miniPlayer.opaque = YES;
     _miniPlayer.layer.borderWidth = 1.0f;
-    _miniPlayer.layer.borderColor = TuneColor(0.40f, 0.58f, 0.57f, 0.5f).CGColor;
+    _miniPlayer.layer.borderColor = TuneThemeBorder().CGColor;
     _miniPlayer.layer.shadowColor = [UIColor blackColor].CGColor;
     _miniPlayer.layer.shadowOpacity = 0.65f;
     _miniPlayer.layer.shadowOffset = CGSizeMake(0.0f, -2.0f);
@@ -343,6 +387,9 @@ static UIImage *TuneLibraryImage(CGFloat size) {
     _miniPlayer.layer.rasterizationScale = [UIScreen mainScreen].scale;
     [_miniPlayer addTarget:self action:@selector(playerPressed) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:_miniPlayer];
+
+    _miniPlayerGradient = [[CAGradientLayer layer] retain];
+    [_miniPlayer.layer insertSublayer:_miniPlayerGradient atIndex:0];
 
     _miniArtwork = [[UIImageView alloc] initWithFrame:CGRectZero];
     _miniArtwork.image = [UIImage imageNamed:@"Icon.png"];
@@ -353,7 +400,7 @@ static UIImage *TuneLibraryImage(CGFloat size) {
 
     _nowTitle = [[UILabel alloc] initWithFrame:CGRectZero];
     _nowTitle.backgroundColor = [UIColor clearColor];
-    _nowTitle.textColor = [UIColor whiteColor];
+    _nowTitle.textColor = TuneThemePrimaryText();
     _nowTitle.font = [UIFont boldSystemFontOfSize:14.0f];
     _nowTitle.text = @"Nothing playing";
     _nowTitle.lineBreakMode = UILineBreakModeTailTruncation;
@@ -361,7 +408,7 @@ static UIImage *TuneLibraryImage(CGFloat size) {
 
     _nowArtist = [[UILabel alloc] initWithFrame:CGRectZero];
     _nowArtist.backgroundColor = [UIColor clearColor];
-    _nowArtist.textColor = TuneColor(0.64f, 0.73f, 0.73f, 1.0f);
+    _nowArtist.textColor = TuneThemeSecondaryText();
     _nowArtist.font = [UIFont systemFontOfSize:12.0f];
     _nowArtist.text = @"Pick a song to start";
     _nowArtist.lineBreakMode = UILineBreakModeTailTruncation;
@@ -381,7 +428,20 @@ static UIImage *TuneLibraryImage(CGFloat size) {
                                              selector:@selector(refreshPlayerUI:)
                                                  name:YTMPlayerDidChangeNotification
                                                object:_player];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(applyTheme:)
+                                                 name:TuneTubeThemeDidChangeNotification
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(focusSearch:)
+                                                 name:TuneTubeFocusSearchNotification
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(appDidBecomeActive:)
+                                                 name:UIApplicationDidBecomeActiveNotification
+                                               object:nil];
     [self loadQuickPicks];
+    [self applyTheme:nil];
 }
 
 - (void)viewDidLayoutSubviews {
@@ -393,22 +453,31 @@ static UIImage *TuneLibraryImage(CGFloat size) {
     BOOL landscape = b.size.width > b.size.height;
     BOOL pad = [[UIDevice currentDevice] userInterfaceIdiom] == UIUserInterfaceIdiomPad;
     CGFloat side = width > 700.0f ? 28.0f : 14.0f;
-    CGFloat top = 4.0f;
-    CGFloat brandHeight = landscape ? 27.0f : 31.0f;
-    CGFloat searchY = landscape ? 38.0f : 53.0f;
-    CGFloat searchHeight = landscape ? 36.0f : 40.0f;
-    CGFloat sectionY = landscape ? 78.0f : 105.0f;
+    CGFloat searchY = 6.0f;
+    CGFloat searchHeight = landscape ? 34.0f : 38.0f;
+    CGFloat sectionY = searchY + searchHeight + 10.0f;
     CGFloat bottom = landscape ? (pad ? 76.0f : 70.0f) : 78.0f;
-    CGFloat tableY = landscape ? 102.0f : 129.0f;
+    CGFloat tableY = sectionY + 23.0f;
+    CGFloat optionsSize = landscape ? 30.0f : 34.0f;
+    CGFloat librarySize = landscape ? 30.0f : 34.0f;
+    CGFloat titleX = side + librarySize + 8.0f;
+    CGFloat titleRight = side + optionsSize + 8.0f;
     _brandLabel.font = [UIFont boldSystemFontOfSize:landscape ? (pad ? 23.0f : 20.0f) : 25.0f];
-    _brandLabel.frame = CGRectMake(side, top, width - side * 2.0f - 54.0f, brandHeight);
-    _taglineLabel.frame = CGRectMake(side + 2.0f, landscape ? 27.0f : 33.0f,
-                                     width - side * 2.0f - 54.0f, 13.0f);
-    _libraryButton.frame = CGRectMake(width - side - 84.0f, landscape ? 2.0f : 8.0f,
-                                      40.0f, 40.0f);
-    _settingsButton.frame = CGRectMake(width - side - 40.0f, landscape ? 2.0f : 8.0f,
-                                       40.0f, 40.0f);
-    _search.frame = CGRectMake(side, searchY, width - side * 2.0f, searchHeight);
+    CGFloat titleWidth = MAX(80.0f, width - titleX - titleRight);
+    _brandLabel.textAlignment = NSTextAlignmentCenter;
+    _brandLabel.frame = CGRectMake(titleX, landscape ? 3.0f : 5.0f,
+                                   titleWidth, landscape ? 27.0f : 31.0f);
+    _taglineLabel.textAlignment = NSTextAlignmentCenter;
+    _taglineLabel.frame = CGRectMake(titleX, landscape ? 29.0f : 36.0f,
+                                     titleWidth, 13.0f);
+    _libraryButton.frame = CGRectMake(side, landscape ? 7.0f : 12.0f,
+                                      librarySize, librarySize);
+    _optionsButton.frame = CGRectMake(width - side - optionsSize,
+                                      landscape ? 7.0f : 12.0f,
+                                      optionsSize, optionsSize);
+    _search.frame = CGRectMake(side, searchY,
+                               MAX(80.0f, width - side * 2.0f),
+                               searchHeight);
 
     _sectionTitle.frame = CGRectMake(side + 2.0f, sectionY, width * 0.55f, 19.0f);
     _status.frame = CGRectMake(width * 0.40f, sectionY, width * 0.60f - side, 19.0f);
@@ -417,6 +486,7 @@ static UIImage *TuneLibraryImage(CGFloat size) {
     _table.frame = CGRectMake(0.0f, tableY, width, tableHeight);
 
     _miniPlayer.frame = CGRectMake(0.0f, b.size.height - bottom, width, bottom);
+    _miniPlayerGradient.frame = _miniPlayer.bounds;
     CGFloat miniArt = landscape ? 50.0f : 58.0f;
     _miniArtwork.frame = CGRectMake(side, landscape ? 9.0f : 10.0f, miniArt, miniArt);
     CGFloat buttonSize = landscape ? 48.0f : 52.0f;
@@ -430,6 +500,67 @@ static UIImage *TuneLibraryImage(CGFloat size) {
     CGFloat textWidth = MAX(30.0f, CGRectGetMinX(_favoriteButton.frame) - textX - 8.0f);
     _nowTitle.frame = CGRectMake(textX, landscape ? 13.0f : 17.0f, textWidth, 22.0f);
     _nowArtist.frame = CGRectMake(textX, landscape ? 37.0f : 41.0f, textWidth, 18.0f);
+}
+
+- (void)applyTheme:(NSNotification *)note {
+    (void)note;
+    self.view.backgroundColor = TuneThemeBackgroundBottom();
+    self.navigationController.navigationBar.barStyle = TuneTubeThemeIsLight()
+        ? UIBarStyleDefault : UIBarStyleBlack;
+    self.navigationController.navigationBar.tintColor = TuneThemeAccent();
+    self.navigationController.navigationBar.titleTextAttributes =
+        [NSDictionary dictionaryWithObject:[UIColor whiteColor]
+                                     forKey:UITextAttributeTextColor];
+    _backgroundGradient.colors = [NSArray arrayWithObjects:
+                                  (id)TuneThemeBackgroundTop().CGColor,
+                                  (id)TuneThemeBackgroundBottom().CGColor, nil];
+
+    [_libraryButton setImage:TuneMaskImage(TuneLibraryImage(24.0f), TuneThemePrimaryText())
+                    forState:UIControlStateNormal];
+    _libraryButton.backgroundColor = TuneThemeSurface();
+    _libraryButton.layer.borderColor = TuneThemeBorder().CGColor;
+
+    UIImage *settingsImage = [UIImage imageNamed:@"icon-settings.png"];
+    if (settingsImage)
+        [_optionsButton setImage:TuneMaskImage(settingsImage, TuneThemePrimaryText())
+                        forState:UIControlStateNormal];
+    _optionsButton.backgroundColor = TuneThemeSurface();
+    _optionsButton.layer.borderColor = TuneThemeBorder().CGColor;
+
+    _brandLabel.textColor = TuneThemePrimaryText();
+    _taglineLabel.textColor = TuneThemeSecondaryText();
+    _search.barStyle = TuneTubeThemeIsLight() ? UIBarStyleDefault : UIBarStyleBlackTranslucent;
+    _search.tintColor = TuneThemeAccent();
+    _search.backgroundColor = TuneThemeSearchBackground();
+    _search.layer.borderColor = TuneThemeBorder().CGColor;
+    _sectionTitle.textColor = TuneThemePrimaryText();
+    _status.textColor = TuneThemeMutedText();
+
+    _miniPlayer.backgroundColor = TuneThemeSurface();
+    _miniPlayer.layer.borderColor = TuneThemeBorder().CGColor;
+    _miniPlayerGradient.colors = [NSArray arrayWithObjects:
+                                  (id)TuneThemeSurfaceTop().CGColor,
+                                  (id)TuneThemeSurfaceBottom().CGColor, nil];
+    _nowTitle.textColor = TuneThemePrimaryText();
+    _nowArtist.textColor = TuneThemeSecondaryText();
+    _miniPlayer.opaque = YES;
+    _miniPlayer.layer.shouldRasterize = NO;
+    [_table reloadData];
+    [self.view setNeedsLayout];
+}
+
+- (void)focusSearch:(NSNotification *)note {
+    (void)note;
+    [self dismissViewControllerAnimated:YES completion:^{
+        [_search becomeFirstResponder];
+    }];
+}
+
+- (void)appDidBecomeActive:(NSNotification *)note {
+    (void)note;
+    [self applyTheme:nil];
+    [_miniPlayer.layer setNeedsDisplay];
+    [self.view setNeedsLayout];
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
@@ -479,13 +610,15 @@ static UIImage *TuneLibraryImage(CGFloat size) {
 }
 
 - (void)playPressed {
+    if (![(YTMPlayer *)_player track]) return;
     [(YTMPlayer *)_player toggle];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
+    [self applyTheme:nil];
     NSString *key = [[NSUserDefaults standardUserDefaults]
-                     objectForKey:TUNTUBE_API_KEY_DEFAULTS_KEY];
+                     objectForKey:TUNETUBE_API_KEY_DEFAULTS_KEY];
     [_api release];
     _api = [[YTMAPI alloc] initWithAPIKey:key.length ? key : YTMDefaultAPIKey];
     [self becomeFirstResponder];
@@ -515,7 +648,8 @@ static UIImage *TuneLibraryImage(CGFloat size) {
 
 - (void)playerPressed {
     if (![(YTMPlayer *)_player track]) return;
-    TunePlayerVC *player = [[[TunePlayerVC alloc] initWithPlayer:(YTMPlayer *)_player] autorelease];
+    TunePlayerVC *player = [[[TunePlayerVC alloc] initWithPlayer:(YTMPlayer *)_player
+                                                              api:(YTMAPI *)_api] autorelease];
     UINavigationController *navigation =
         [[[UINavigationController alloc] initWithRootViewController:player] autorelease];
     navigation.modalPresentationStyle = UIModalPresentationFullScreen;
@@ -527,15 +661,15 @@ static UIImage *TuneLibraryImage(CGFloat size) {
     if (!player) player = (YTMPlayer *)_player;
     NSError *error = [[note userInfo] objectForKey:@"error"];
     if (error) {
-        _status.text = [error localizedDescription];
+        _status.text = TunePlaybackErrorText(error);
         [_playButton setPlaying:NO];
         return;
     }
     if (player.track) {
         _nowTitle.text = player.track.title;
-        _nowArtist.text = player.track.artist;
+        _nowArtist.text = YTMDisplayArtist(player.track.artist);
         [_playButton setPlaying:player.isPlaying];
-    _status.text = player.isPlaying ? @"Playing now" : @"Paused";
+        _status.text = player.isPlaying ? @"Playing now" : @"Paused";
         [_favoriteButton setActive:TuneTubeTrackIsSaved(player.track)];
 
         NSString *requestedURL = [player.track.thumbnailURL copy];

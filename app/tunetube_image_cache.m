@@ -1,4 +1,4 @@
-#import "tuntube_image_cache.h"
+#import "tunetube_image_cache.h"
 
 #import <dispatch/dispatch.h>
 
@@ -19,7 +19,7 @@ static NSOperationQueue *TuneImageQueue(void) {
     dispatch_once(&onceToken, ^{
         queue = [[NSOperationQueue alloc] init];
         [queue setMaxConcurrentOperationCount:2];
-        [queue setName:@"com.sqmrak.tuntube.image-loader"];
+        [queue setName:@"com.sqmrak.tunetube.image-loader"];
     });
     return queue;
 }

@@ -7,26 +7,169 @@
 #import "ytm_player.h"
 #import "library_vc.h"
 #import "play_button.h"
-#import "tuntube_image_cache.h"
-
-static UIColor *PlayerColor(CGFloat red, CGFloat green, CGFloat blue, CGFloat alpha) {
-    return [UIColor colorWithRed:red green:green blue:blue alpha:alpha];
-}
+#import "tunetube_image_cache.h"
+#import "tunetube_theme.h"
 
 static NSString *PlayerTime(NSUInteger seconds) {
     return [NSString stringWithFormat:@"%lu:%02lu",
             (unsigned long)(seconds / 60), (unsigned long)(seconds % 60)];
 }
 
+static UIImage *TunePlayerMaskImage(UIImage *mask, UIColor *color) {
+    if (!mask) return nil;
+    UIGraphicsBeginImageContextWithOptions(mask.size, NO, mask.scale);
+    CGRect rect = CGRectMake(0.0f, 0.0f, mask.size.width, mask.size.height);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    CGContextSetFillColorWithColor(context, color.CGColor);
+    CGContextFillRect(context, rect);
+    [mask drawInRect:rect blendMode:kCGBlendModeDestinationIn alpha:1.0f];
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return image;
+}
+
+static UIImage *TunePlayerLibraryImage(CGFloat size) {
+    UIGraphicsBeginImageContextWithOptions(CGSizeMake(size, size), NO, 0.0f);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    CGContextSetStrokeColorWithColor(context, [UIColor whiteColor].CGColor);
+    CGContextSetLineWidth(context, MAX(1.3f, size * 0.075f));
+    CGContextSetLineJoin(context, kCGLineJoinRound);
+    CGContextSetLineCap(context, kCGLineCapRound);
+
+    CGRect rear = CGRectMake(size * 0.18f, size * 0.14f, size * 0.58f, size * 0.66f);
+    CGRect front = CGRectMake(size * 0.31f, size * 0.25f, size * 0.56f, size * 0.62f);
+    CGContextStrokeRect(context, rear);
+    CGContextStrokeRect(context, front);
+    CGContextMoveToPoint(context, size * 0.43f, size * 0.45f);
+    CGContextAddLineToPoint(context, size * 0.76f, size * 0.45f);
+    CGContextMoveToPoint(context, size * 0.43f, size * 0.58f);
+    CGContextAddLineToPoint(context, size * 0.76f, size * 0.58f);
+    CGContextStrokePath(context);
+
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return image;
+}
+
+static UIImage *TunePlayerSearchImage(CGFloat size) {
+    UIGraphicsBeginImageContextWithOptions(CGSizeMake(size, size), NO, 0.0f);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    CGContextSetStrokeColorWithColor(context, [UIColor whiteColor].CGColor);
+    CGContextSetLineWidth(context, MAX(1.3f, size * 0.075f));
+    CGContextSetLineCap(context, kCGLineCapRound);
+
+    CGContextStrokeEllipseInRect(context,
+                                 CGRectMake(size * 0.16f, size * 0.14f,
+                                            size * 0.48f, size * 0.48f));
+    CGContextMoveToPoint(context, size * 0.56f, size * 0.56f);
+    CGContextAddLineToPoint(context, size * 0.84f, size * 0.84f);
+    CGContextStrokePath(context);
+
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return image;
+}
+
+@interface TunePlayerHeaderButton : UIButton {
+    CAGradientLayer *_gradient;
+}
+- (void)applyTheme;
+@end
+
+@implementation TunePlayerHeaderButton
+
+- (id)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (!self) return nil;
+    _gradient = [[CAGradientLayer layer] retain];
+    _gradient.cornerRadius = 8.0f;
+    [self.layer insertSublayer:_gradient atIndex:0];
+    self.backgroundColor = [UIColor clearColor];
+    self.layer.cornerRadius = 8.0f;
+    self.layer.borderWidth = 1.0f;
+    self.layer.borderColor = TuneThemeNavigationBorder().CGColor;
+    self.layer.shadowColor = [UIColor blackColor].CGColor;
+    self.layer.shadowOpacity = 0.24f;
+    self.layer.shadowOffset = CGSizeMake(0.0f, 2.0f);
+    self.layer.shadowRadius = 1.5f;
+    self.titleLabel.font = [UIFont boldSystemFontOfSize:12.0f];
+    self.adjustsImageWhenHighlighted = NO;
+    return self;
+}
+
+- (void)dealloc {
+    [_gradient release];
+    [super dealloc];
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    _gradient.frame = self.bounds;
+}
+
+- (void)applyTheme {
+    _gradient.colors = [NSArray arrayWithObjects:
+                        (id)TuneThemeNavigationTop().CGColor,
+                        (id)TuneThemeNavigationBottom().CGColor, nil];
+    self.backgroundColor = [UIColor clearColor];
+    self.layer.borderColor = TuneThemeNavigationBorder().CGColor;
+    self.layer.shadowOpacity = 0.24f;
+    [self setTitleColor:TuneThemeHeaderText() forState:UIControlStateNormal];
+}
+
+@end
+
 static void PlayerStyleVolumeView(MPVolumeView *volumeView) {
+    UIGraphicsBeginImageContextWithOptions(CGSizeMake(28.0f, 28.0f), NO, 0.0f);
+    CGContextRef thumbContext = UIGraphicsGetCurrentContext();
+    CGContextSetFillColorWithColor(thumbContext,
+                                   [UIColor colorWithWhite:0.58f alpha:1.0f].CGColor);
+    CGContextFillEllipseInRect(thumbContext, CGRectMake(2.0f, 2.0f, 24.0f, 24.0f));
+    CGContextSetStrokeColorWithColor(thumbContext, TuneThemeBorder().CGColor);
+    CGContextSetLineWidth(thumbContext, 1.0f);
+    CGContextStrokeEllipseInRect(thumbContext, CGRectMake(2.0f, 2.0f, 24.0f, 24.0f));
+    UIImage *volumeThumb = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+
     for (UIView *subview in volumeView.subviews) {
         if (![subview isKindOfClass:[UISlider class]]) continue;
         UISlider *slider = (UISlider *)subview;
-        slider.minimumTrackTintColor = PlayerColor(0.96f, 0.10f, 0.08f, 1.0f);
-        slider.maximumTrackTintColor = PlayerColor(0.55f, 0.58f, 0.58f, 0.65f);
-        slider.thumbTintColor = PlayerColor(0.93f, 0.95f, 0.95f, 1.0f);
+        if ([slider respondsToSelector:@selector(setMinimumTrackTintColor:)]) {
+            slider.minimumTrackTintColor = TuneThemeAccent();
+            slider.maximumTrackTintColor = TuneThemeMutedText();
+        }
+        [slider setThumbImage:volumeThumb forState:UIControlStateNormal];
+        [slider setThumbImage:volumeThumb forState:UIControlStateHighlighted];
+        if ([slider respondsToSelector:@selector(setThumbTintColor:)])
+            slider.thumbTintColor = TuneThemePrimaryText();
+        if (volumeView.bounds.size.height > 0.0f && slider.frame.size.height > 0.0f) {
+            CGRect frame = slider.frame;
+            frame.origin.y = floorf((volumeView.bounds.size.height - frame.size.height) * 0.5f);
+            slider.frame = frame;
+        }
         break;
     }
+}
+
+@interface TunePlayerVolumeView : MPVolumeView
+@end
+
+@implementation TunePlayerVolumeView
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    PlayerStyleVolumeView(self);
+}
+
+@end
+
+static void PlayerStyleSlider(UISlider *slider) {
+    if ([slider respondsToSelector:@selector(setMinimumTrackTintColor:)]) {
+        slider.minimumTrackTintColor = TuneThemeAccent();
+        slider.maximumTrackTintColor = TuneThemeMutedText();
+    }
+    if ([slider respondsToSelector:@selector(setThumbTintColor:)])
+        slider.thumbTintColor = TuneThemePrimaryText();
 }
 
 static BOOL PlayerIsPad(void) {
@@ -38,31 +181,44 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
 }
 
 @interface TunePlayerVC ()
-- (void)refresh;
-- (void)updateProgress;
+- (void)refresh:(NSNotification *)note;
+- (void)updateProgress:(NSTimer *)timer;
 - (void)progressChanged:(UISlider *)slider;
-- (void)closePressed;
+- (void)searchPressed;
+- (void)libraryPressed;
+- (void)backPressed;
 - (void)togglePressed;
 - (void)favoritePressed;
 - (void)nextTrackPressed;
 - (void)previousTrackPressed;
 - (void)repeatPressed;
+- (void)applyTheme:(NSNotification *)note;
 @end
 
 @implementation TunePlayerVC
 
 - (id)initWithPlayer:(YTMPlayer *)player {
+    return [self initWithPlayer:player api:nil];
+}
+
+- (id)initWithPlayer:(YTMPlayer *)player api:(YTMAPI *)api {
     self = [super init];
-    if (self) _player = [player retain];
+    if (self) {
+        _player = [player retain];
+        _api = [api retain];
+    }
     return self;
 }
 
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
     [_player release];
+    [_api release];
     [_backgroundGradient release];
+    [_headerGradient release];
     [_headerBar release];
     [_headerSearch release];
+    [_headerLibrary release];
     [_headerTitle release];
     [_artwork release];
     [_titleLabel release];
@@ -83,48 +239,80 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
 
 - (void)loadView {
     UIView *view = [[[UIView alloc] initWithFrame:[[UIScreen mainScreen] bounds]] autorelease];
-    view.backgroundColor = PlayerColor(0.01f, 0.03f, 0.04f, 1.0f);
+    view.backgroundColor = TuneThemeBackgroundBottom();
     self.view = view;
 }
 
 - (UIButton *)textButton:(NSString *)title size:(CGFloat)size {
-    UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
+    UIButton *button = [[[TunePlayerHeaderButton alloc] initWithFrame:CGRectZero] autorelease];
     [button setTitle:title forState:UIControlStateNormal];
-    [button setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
-    button.titleLabel.font = [UIFont systemFontOfSize:size];
+    [button setTitleColor:TuneThemeHeaderText() forState:UIControlStateNormal];
+    button.titleLabel.font = [UIFont boldSystemFontOfSize:size];
     return button;
 }
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.navigationController.navigationBarHidden = YES;
+    self.navigationController.navigationBarHidden = NO;
+    self.title = @"TuneTube";
+    self.navigationItem.leftBarButtonItem =
+        [[[UIBarButtonItem alloc] initWithTitle:@"Back"
+                                          style:UIBarButtonItemStyleBordered
+                                         target:self
+                                         action:@selector(backPressed)] autorelease];
+    self.navigationItem.rightBarButtonItem =
+        [[[UIBarButtonItem alloc] initWithTitle:@"Library"
+                                          style:UIBarButtonItemStyleBordered
+                                         target:self
+                                         action:@selector(libraryPressed)] autorelease];
     _backgroundGradient = [[CAGradientLayer layer] retain];
     _backgroundGradient.colors = [NSArray arrayWithObjects:
-                                  (id)PlayerColor(0.30f, 0.03f, 0.03f, 1.0f).CGColor,
-                                  (id)PlayerColor(0.12f, 0.01f, 0.02f, 1.0f).CGColor,
-                                  (id)PlayerColor(0.015f, 0.01f, 0.015f, 1.0f).CGColor, nil];
-    _backgroundGradient.locations = [NSArray arrayWithObjects:@0.0f, @0.38f, @1.0f, nil];
+                                  (id)TuneThemeBackgroundTop().CGColor,
+                                  (id)TuneThemeBackgroundBottom().CGColor, nil];
+    _backgroundGradient.locations = [NSArray arrayWithObjects:@0.0f, @1.0f, nil];
     [self.view.layer insertSublayer:(CAGradientLayer *)_backgroundGradient atIndex:0];
 
     _headerBar = [[UIView alloc] initWithFrame:CGRectZero];
-    _headerBar.backgroundColor = PlayerColor(0.42f, 0.04f, 0.04f, 0.96f);
+    _headerBar.backgroundColor = [UIColor clearColor];
+    _headerBar.hidden = YES;
     _headerBar.layer.borderWidth = 1.0f;
-    _headerBar.layer.borderColor = PlayerColor(0.75f, 0.17f, 0.14f, 0.38f).CGColor;
+    _headerBar.layer.borderColor = TuneThemeNavigationBorder().CGColor;
+    _headerGradient = [[CAGradientLayer layer] retain];
+    [_headerBar.layer insertSublayer:_headerGradient atIndex:0];
     [self.view addSubview:_headerBar];
 
     _headerSearch = [[self textButton:@"Search" size:12.0f] retain];
-    _headerSearch.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
+    [_headerSearch setTitle:nil forState:UIControlStateNormal];
+    [_headerSearch setImage:TunePlayerMaskImage(TunePlayerSearchImage(24.0f),
+                                                TuneThemeHeaderText())
+                    forState:UIControlStateNormal];
+    _headerSearch.imageEdgeInsets = UIEdgeInsetsMake(5.0f, 5.0f, 5.0f, 5.0f);
+    _headerSearch.contentHorizontalAlignment = UIControlContentHorizontalAlignmentCenter;
     _headerSearch.accessibilityLabel = @"Search";
-    [_headerSearch addTarget:self action:@selector(closePressed)
+    [_headerSearch addTarget:self action:@selector(searchPressed)
             forControlEvents:UIControlEventTouchUpInside];
     [_headerBar addSubview:_headerSearch];
 
+    _headerLibrary = [[self textButton:@"Library" size:12.0f] retain];
+    [_headerLibrary setTitle:nil forState:UIControlStateNormal];
+    [_headerLibrary setImage:TunePlayerMaskImage(TunePlayerLibraryImage(24.0f),
+                                                 TuneThemeHeaderText())
+                     forState:UIControlStateNormal];
+    _headerLibrary.imageEdgeInsets = UIEdgeInsetsMake(5.0f, 5.0f, 5.0f, 5.0f);
+    _headerLibrary.contentHorizontalAlignment = UIControlContentHorizontalAlignmentCenter;
+    _headerLibrary.accessibilityLabel = @"Library";
+    [_headerLibrary addTarget:self action:@selector(libraryPressed)
+              forControlEvents:UIControlEventTouchUpInside];
+    [_headerBar addSubview:_headerLibrary];
+
     _headerTitle = [[UILabel alloc] initWithFrame:CGRectZero];
     _headerTitle.backgroundColor = [UIColor clearColor];
-    _headerTitle.textColor = [UIColor whiteColor];
+    _headerTitle.textColor = TuneThemePrimaryText();
     _headerTitle.font = [UIFont boldSystemFontOfSize:17.0f];
     _headerTitle.textAlignment = NSTextAlignmentCenter;
     _headerTitle.text = @"TuneTube";
+    _headerTitle.shadowColor = [UIColor colorWithWhite:0.0f alpha:0.65f];
+    _headerTitle.shadowOffset = CGSizeMake(0.0f, 2.0f);
     [_headerBar addSubview:_headerTitle];
 
     _artwork = [[UIImageView alloc] initWithFrame:CGRectZero];
@@ -133,7 +321,7 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
     _artwork.layer.cornerRadius = 12.0f;
     _artwork.layer.masksToBounds = YES;
     _artwork.layer.borderWidth = 1.0f;
-    _artwork.layer.borderColor = PlayerColor(1.0f, 0.25f, 0.20f, 0.55f).CGColor;
+    _artwork.layer.borderColor = TuneThemeBorder().CGColor;
     _artwork.layer.shadowColor = [UIColor blackColor].CGColor;
     _artwork.layer.shadowOpacity = 0.7f;
     _artwork.layer.shadowOffset = CGSizeMake(0.0f, 6.0f);
@@ -142,7 +330,7 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
 
     _titleLabel = [[UILabel alloc] initWithFrame:CGRectZero];
     _titleLabel.backgroundColor = [UIColor clearColor];
-    _titleLabel.textColor = [UIColor whiteColor];
+    _titleLabel.textColor = TuneThemePrimaryText();
     _titleLabel.font = [UIFont boldSystemFontOfSize:22.0f];
     _titleLabel.textAlignment = NSTextAlignmentCenter;
     _titleLabel.lineBreakMode = UILineBreakModeTailTruncation;
@@ -150,7 +338,7 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
 
     _artistLabel = [[UILabel alloc] initWithFrame:CGRectZero];
     _artistLabel.backgroundColor = [UIColor clearColor];
-    _artistLabel.textColor = PlayerColor(0.82f, 0.86f, 0.86f, 0.62f);
+    _artistLabel.textColor = TuneThemeSecondaryText();
     _artistLabel.font = [UIFont systemFontOfSize:12.0f];
     _artistLabel.textAlignment = NSTextAlignmentCenter;
     _artistLabel.lineBreakMode = UILineBreakModeTailTruncation;
@@ -160,8 +348,7 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
     _progress.minimumValue = 0.0f;
     _progress.maximumValue = 1.0f;
     _progress.value = 0.0f;
-    _progress.minimumTrackTintColor = PlayerColor(0.96f, 0.10f, 0.08f, 1.0f);
-    _progress.maximumTrackTintColor = PlayerColor(0.55f, 0.58f, 0.58f, 0.65f);
+    PlayerStyleSlider(_progress);
     _progress.userInteractionEnabled = YES;
     [_progress addTarget:self action:@selector(progressChanged:)
         forControlEvents:UIControlEventValueChanged | UIControlEventTouchUpInside |
@@ -170,21 +357,22 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
 
     _elapsedLabel = [[UILabel alloc] initWithFrame:CGRectZero];
     _elapsedLabel.backgroundColor = [UIColor clearColor];
-    _elapsedLabel.textColor = PlayerColor(0.70f, 0.74f, 0.74f, 1.0f);
+    _elapsedLabel.textColor = TuneThemeMutedText();
     _elapsedLabel.font = [UIFont systemFontOfSize:11.0f];
     [self.view addSubview:_elapsedLabel];
 
     _durationLabel = [[UILabel alloc] initWithFrame:CGRectZero];
     _durationLabel.backgroundColor = [UIColor clearColor];
-    _durationLabel.textColor = PlayerColor(0.70f, 0.74f, 0.74f, 1.0f);
+    _durationLabel.textColor = TuneThemeMutedText();
     _durationLabel.font = [UIFont systemFontOfSize:11.0f];
     _durationLabel.textAlignment = NSTextAlignmentRight;
     [self.view addSubview:_durationLabel];
 
-    _volumeView = [[MPVolumeView alloc] initWithFrame:CGRectZero];
+    _volumeView = [[TunePlayerVolumeView alloc] initWithFrame:CGRectZero];
     _volumeView.showsRouteButton = NO;
     _volumeView.showsVolumeSlider = YES;
     _volumeView.backgroundColor = [UIColor clearColor];
+    _volumeView.clipsToBounds = NO;
     [self.view addSubview:_volumeView];
     PlayerStyleVolumeView(_volumeView);
 
@@ -224,10 +412,53 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
     [_artwork addGestureRecognizer:previousSwipe];
 
     [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(refresh)
+                                             selector:@selector(refresh:)
                                                  name:YTMPlayerDidChangeNotification
                                                object:_player];
-    [self refresh];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(applyTheme:)
+                                                 name:TuneTubeThemeDidChangeNotification
+                                               object:nil];
+    [self applyTheme:nil];
+    [self refresh:nil];
+}
+
+- (void)applyTheme:(NSNotification *)note {
+    (void)note;
+    self.view.backgroundColor = TuneThemeBackgroundBottom();
+    self.navigationController.navigationBar.barStyle = TuneTubeThemeIsLight()
+        ? UIBarStyleDefault : UIBarStyleBlack;
+    self.navigationController.navigationBar.tintColor = TuneThemeAccent();
+    self.navigationController.navigationBar.titleTextAttributes =
+        [NSDictionary dictionaryWithObject:TuneThemePrimaryText()
+                                     forKey:UITextAttributeTextColor];
+    _backgroundGradient.colors = [NSArray arrayWithObjects:
+                                  (id)TuneThemeBackgroundTop().CGColor,
+                                  (id)TuneThemeBackgroundBottom().CGColor, nil];
+    _backgroundGradient.locations = [NSArray arrayWithObjects:@0.0f, @1.0f, nil];
+    _headerGradient.frame = _headerBar.bounds;
+    _headerGradient.colors = [NSArray arrayWithObjects:
+                              (id)TuneThemeNavigationTop().CGColor,
+                              (id)TuneThemeNavigationBottom().CGColor, nil];
+    _headerBar.backgroundColor = [UIColor clearColor];
+    _headerBar.layer.borderColor = TuneThemeNavigationBorder().CGColor;
+    [_headerSearch setImage:TunePlayerMaskImage(TunePlayerSearchImage(24.0f),
+                                                TuneThemeHeaderText())
+                    forState:UIControlStateNormal];
+    [_headerLibrary setImage:TunePlayerMaskImage(TunePlayerLibraryImage(24.0f),
+                                                 TuneThemeHeaderText())
+                     forState:UIControlStateNormal];
+    [(TunePlayerHeaderButton *)_headerSearch applyTheme];
+    [(TunePlayerHeaderButton *)_headerLibrary applyTheme];
+    _headerTitle.textColor = TuneThemePrimaryText();
+    _artwork.layer.borderColor = TuneThemeBorder().CGColor;
+    _titleLabel.textColor = TuneThemePrimaryText();
+    _artistLabel.textColor = TuneThemeSecondaryText();
+    _elapsedLabel.textColor = TuneThemeMutedText();
+    _durationLabel.textColor = TuneThemeMutedText();
+    PlayerStyleSlider(_progress);
+    PlayerStyleVolumeView(_volumeView);
+    [self.view setNeedsLayout];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -235,7 +466,7 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
     if (!_progressTimer) {
         _progressTimer = [[NSTimer scheduledTimerWithTimeInterval:0.5f
                                                             target:self
-                                                          selector:@selector(updateProgress)
+                                                          selector:@selector(updateProgress:)
                                                           userInfo:nil
                                                             repeats:YES] retain];
     }
@@ -257,10 +488,21 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
     BOOL landscape = b.size.width > b.size.height;
     BOOL compact = PlayerIsCompactPhone(b.size.height);
 
-    CGFloat headerHeight = PlayerIsPad() ? 52.0f : 44.0f;
+    CGFloat headerHeight = 0.0f;
+    CGFloat headerButtonSize = landscape ? 30.0f : 34.0f;
+    CGFloat headerButtonInset = b.size.width > 700.0f ? 28.0f : 14.0f;
+    CGFloat headerButtonY = landscape ? 7.0f : 12.0f;
     _headerBar.frame = CGRectMake(0.0f, 0.0f, b.size.width, headerHeight);
-    _headerSearch.frame = CGRectMake(12.0f, 0.0f, 68.0f, headerHeight);
-    _headerTitle.frame = CGRectMake(0.0f, 0.0f, b.size.width, headerHeight);
+    _headerGradient.frame = _headerBar.bounds;
+    _headerSearch.frame = CGRectMake(headerButtonInset, headerButtonY,
+                                     headerButtonSize, headerButtonSize);
+    _headerLibrary.frame = CGRectMake(b.size.width - headerButtonInset - headerButtonSize,
+                                      headerButtonY, headerButtonSize, headerButtonSize);
+    _headerTitle.frame = CGRectMake(headerButtonInset + headerButtonSize + 8.0f, 0.0f,
+                                    b.size.width - (headerButtonInset + headerButtonSize + 8.0f) * 2.0f,
+                                    headerHeight);
+    _headerTitle.font = [UIFont boldSystemFontOfSize:
+                         landscape ? (PlayerIsPad() ? 23.0f : 20.0f) : 25.0f];
 
     if (landscape) {
         CGFloat side = PlayerIsPad() ? 28.0f : 14.0f;
@@ -283,21 +525,19 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
 
         CGFloat rightX = side + leftWidth + (PlayerIsPad() ? 32.0f : 20.0f);
         CGFloat rightWidth = MAX(120.0f, b.size.width - rightX - side);
-        /* keep the transport block in the lower half instead of crowding the artwork */
-        CGFloat sliderAnchor = PlayerIsPad() ? b.size.height * 0.54f : b.size.height * 0.50f;
-        CGFloat sliderY = MIN(b.size.height - 126.0f, MAX(headerHeight + 38.0f,
-                                                         sliderAnchor));
+        CGFloat playSize = compact ? 58.0f : (PlayerIsPad() ? 76.0f : 68.0f);
+        CGFloat small = compact ? 34.0f : (PlayerIsPad() ? 48.0f : 42.0f);
+        CGFloat gap = compact ? 4.0f : 8.0f;
+        CGFloat artworkCenterY = CGRectGetMidY(_artwork.frame);
+        CGFloat controlY = artworkCenterY - floorf(playSize * 0.5f);
+        CGFloat sliderY = MAX(headerHeight + 34.0f, controlY - 42.0f);
         _progress.frame = CGRectMake(rightX, sliderY, rightWidth, 24.0f);
         _elapsedLabel.frame = CGRectMake(rightX + 2.0f, sliderY + 18.0f, 70.0f, 18.0f);
         _durationLabel.frame = CGRectMake(rightX + rightWidth - 72.0f, sliderY + 18.0f,
                                           70.0f, 18.0f);
 
-        CGFloat playSize = compact ? 64.0f : 76.0f;
-        CGFloat controlY = MIN(b.size.height - playSize - 18.0f, sliderY + 56.0f);
         _playButton.frame = CGRectMake(rightX + floorf((rightWidth - playSize) * 0.5f),
                                        controlY, playSize, playSize);
-        CGFloat small = compact ? 42.0f : 48.0f;
-        CGFloat gap = 8.0f;
         CGFloat centerX = CGRectGetMidX(_playButton.frame);
         CGFloat smallY = controlY + floorf((playSize - small) * 0.5f);
         _previousButton.frame = CGRectMake(centerX - playSize * 0.5f - gap - small,
@@ -308,8 +548,9 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
                                          smallY, small, small);
         _favoriteButton.frame = CGRectMake(CGRectGetMinX(_previousButton.frame) - gap - small,
                                            smallY, small, small);
-        _volumeView.frame = CGRectMake(rightX, MIN(b.size.height - 30.0f, controlY + playSize + 8.0f),
+        _volumeView.frame = CGRectMake(rightX, MIN(b.size.height - 32.0f, controlY + playSize + 8.0f) - 4.0f,
                                        rightWidth, 24.0f);
+        PlayerStyleVolumeView(_volumeView);
     } else {
         CGFloat artTop = PlayerIsPad() ? headerHeight + 12.0f : headerHeight + 8.0f;
         CGFloat artSize;
@@ -349,7 +590,8 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
         _favoriteButton.frame = CGRectMake(CGRectGetMinX(_previousButton.frame) - gap - small,
                                            smallY, small, small);
         CGFloat volumeY = MIN(b.size.height - 28.0f, controlY + playSize + 8.0f);
-        _volumeView.frame = CGRectMake(38.0f, volumeY, b.size.width - 76.0f, 24.0f);
+        _volumeView.frame = CGRectMake(38.0f, volumeY - 4.0f, b.size.width - 76.0f, 24.0f);
+        PlayerStyleVolumeView(_volumeView);
     }
 }
 
@@ -360,7 +602,8 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
     [self.view setNeedsLayout];
 }
 
-- (void)refresh {
+- (void)refresh:(NSNotification *)note {
+    NSError *error = [[note userInfo] objectForKey:@"error"];
     YTMTrack *track = _player.track;
     if (!track) {
         _titleLabel.text = @"Nothing playing";
@@ -376,7 +619,15 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
     }
 
     _titleLabel.text = track.title;
-    _artistLabel.text = track.artist.length ? track.artist : @"Unknown artist";
+    if (error) {
+        _artistLabel.text = YTMDisplayArtist(track.artist);
+        _elapsedLabel.text = @"0:00";
+        _durationLabel.text = PlayerTime(track.duration);
+        _progress.value = 0.0f;
+        [_playButton setPlaying:NO];
+        return;
+    }
+    _artistLabel.text = YTMDisplayArtist(track.artist);
     _progress.value = [_player progress];
     _elapsedLabel.text = PlayerTime((NSUInteger)[_player currentTime]);
     _durationLabel.text = PlayerTime((NSUInteger)[_player duration]);
@@ -394,7 +645,8 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
     [requestedURL release];
 }
 
-- (void)updateProgress {
+- (void)updateProgress:(NSTimer *)timer {
+    (void)timer;
     if (!_player.track) return;
     _progress.value = [_player progress];
     _elapsedLabel.text = PlayerTime((NSUInteger)[_player currentTime]);
@@ -403,14 +655,29 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
 
 - (void)progressChanged:(UISlider *)slider {
     [_player seekToProgress:slider.value];
-    [self updateProgress];
+    [self updateProgress:nil];
 }
 
-- (void)closePressed {
+- (void)searchPressed {
+    [[NSNotificationCenter defaultCenter]
+     postNotificationName:TuneTubeFocusSearchNotification object:nil];
+}
+
+- (void)libraryPressed {
+    if (!_player || !_api) return;
+    TuneLibraryVC *library = [[[TuneLibraryVC alloc] initWithPlayer:_player api:_api] autorelease];
+    UINavigationController *navigation =
+        [[[UINavigationController alloc] initWithRootViewController:library] autorelease];
+    navigation.modalPresentationStyle = UIModalPresentationFullScreen;
+    [self presentViewController:navigation animated:YES completion:nil];
+}
+
+- (void)backPressed {
     [self dismissViewControllerAnimated:YES completion:nil];
 }
 
 - (void)togglePressed {
+    if (!_player.track) return;
     [_player toggle];
 }
 

@@ -1,0 +1,12 @@
+#ifndef TUNETUBE_CONFIG_H
+#define TUNETUBE_CONFIG_H
+
+#define TUNETUBE_VERSION @"1.0.1-stable"
+#define TUNETUBE_API_KEY_DEFAULTS_KEY @"YTMAPIKey"
+#define TUNETUBE_LIBRARY_DEFAULTS_KEY @"TuneTubeFavorites"
+#define TUNETUBE_HISTORY_DEFAULTS_KEY @"TuneTubeRecentTracks"
+#define TUNETUBE_BACKGROUND_AUDIO_DEFAULTS_KEY @"TuneTubeBackgroundAudio"
+#define TUNETUBE_LIGHT_THEME_DEFAULTS_KEY @"TuneTubeLightTheme"
+#define TUNETUBE_BACKGROUND_AUDIO_DID_CHANGE_NOTIFICATION @"TuneTubeBackgroundAudioDidChangeNotification"
+
+#endif /* TUNETUBE_CONFIG_H */

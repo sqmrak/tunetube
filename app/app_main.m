@@ -39,7 +39,10 @@ didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     [application beginReceivingRemoteControlEvents];
     _window = [[UIWindow alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
     _window.backgroundColor = [UIColor whiteColor];
-    _window.rootViewController = [[[MainVC alloc] init] autorelease];
+    MainVC *main = [[[MainVC alloc] init] autorelease];
+    UINavigationController *navigation =
+        [[[UINavigationController alloc] initWithRootViewController:main] autorelease];
+    _window.rootViewController = navigation;
     [_window makeKeyAndVisible];
     return YES;
 }

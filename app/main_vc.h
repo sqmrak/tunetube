@@ -14,13 +14,14 @@
     CAGradientLayer *_backgroundGradient;
     UISearchBar *_search;
     UIButton *_libraryButton;
-    UIButton *_settingsButton;
+    UIButton *_optionsButton;
     UILabel *_brandLabel;
     UILabel *_taglineLabel;
     UILabel *_sectionTitle;
     UITableView *_table;
     UILabel *_status;
     UIControl *_miniPlayer;
+    CAGradientLayer *_miniPlayerGradient;
     UIImageView *_miniArtwork;
     UILabel *_nowTitle;
     UILabel *_nowArtist;

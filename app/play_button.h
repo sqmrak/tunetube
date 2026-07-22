@@ -1,5 +1,5 @@
-#ifndef TUNTUBE_PLAY_BUTTON_H
-#define TUNTUBE_PLAY_BUTTON_H
+#ifndef TUNETUBE_PLAY_BUTTON_H
+#define TUNETUBE_PLAY_BUTTON_H
 
 #import <UIKit/UIKit.h>
 

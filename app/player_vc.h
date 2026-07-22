@@ -1,19 +1,23 @@
-#ifndef TUNTUBE_PLAYER_VC_H
-#define TUNTUBE_PLAYER_VC_H
+#ifndef TUNETUBE_PLAYER_VC_H
+#define TUNETUBE_PLAYER_VC_H
 
 #import <UIKit/UIKit.h>
 #import <QuartzCore/QuartzCore.h>
 
 @class YTMPlayer;
+@class YTMAPI;
 @class MPVolumeView;
 @class TunePlaybackButton;
 @class TuneRoundButton;
 
 @interface TunePlayerVC : UIViewController {
     YTMPlayer *_player;
+    YTMAPI *_api;
     CAGradientLayer *_backgroundGradient;
+    CAGradientLayer *_headerGradient;
     UIView *_headerBar;
     UIButton *_headerSearch;
+    UIButton *_headerLibrary;
     UILabel *_headerTitle;
     UIImageView *_artwork;
     UILabel *_titleLabel;
@@ -31,6 +35,7 @@
 }
 
 - (id)initWithPlayer:(YTMPlayer *)player;
+- (id)initWithPlayer:(YTMPlayer *)player api:(YTMAPI *)api;
 
 @end
 
