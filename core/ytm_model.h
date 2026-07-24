@@ -23,10 +23,10 @@ typedef struct {
 /* clear the fixed record so old callers can reuse one stack object */
 void ytm_track_init(ytm_track_t *track);
 
-/* copy text with predictable truncation and no hidden allocation */
+/* avoid hidden allocations so callers can use fixed buffers */
 int ytm_track_set_text(char *dst, size_t cap, const char *src);
 
-/* parse the ISO-8601 durations returned by player/catalog responses */
+/* keep duration parsing here because api responses use ISO-8601 strings */
 int ytm_duration_parse(const char *text, unsigned *out_seconds);
 
 #ifdef __cplusplus

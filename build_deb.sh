@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build an installable app package for a jailbroken legacy ios device
+# keep the package layout compatible with jailbreak installers
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"

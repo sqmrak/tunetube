@@ -10,8 +10,7 @@ The project is not affiliated with Google or YouTube.
 - iPhoneOS SDK that can build the armv7 slice
 - iPhoneOS SDK that can build the arm64 slice
 
-The build scripts accept these environment variables when the SDKs are not in
-their usual locations:
+Set the toolchain and sdk paths before building:
 
 ```bash
 export THEOS=/path/to/theos

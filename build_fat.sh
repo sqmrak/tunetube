@@ -1,25 +1,27 @@
 #!/usr/bin/env bash
-# build armv7+arm64 slices while keeping the legacy linker path explicit
+# make one binary for both cpu families so the same app runs on old and newer devices
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-THEOS="${THEOS:-${HOME}/theos}"
+THEOS="${THEOS:?set THEOS to theos root}"
 TC="${YTM_TC:-${THEOS}/toolchain/linux/iphone/bin}"
-LIPO="${TC}/lipo"
-LDID="${TC}/ldid"
-SDK_V7="${YTM_SDK_V7:-${HOME}/sdks-armv7}"
-SDK_V64="${YTM_SDK_V64:-${HOME}/sdks/iPhoneOS16.5.sdk}"
+LIPO="${YTM_LIPO:-${TC}/lipo}"
+LDID="${YTM_LDID:-${TC}/ldid}"
+SDK_V7="${YTM_SDK_V7:?set YTM_SDK_V7 to the armv7 sdk}"
+SDK_V64="${YTM_SDK_V64:?set YTM_SDK_V64 to the arm64 sdk}"
 SLICES="${ROOT}/.build-slices"
 
 rm -rf "${SLICES}"
 mkdir -p "${SLICES}/armv7" "${SLICES}/arm64"
 
 make -C "${ROOT}" clean all \
+    THEOS="${THEOS}" TC="${TC}" LDID="${LDID}" \
     TRIPLE=arm-apple-darwin11 SDK="${SDK_V7}" \
     ARCH="-arch armv7 -miphoneos-version-min=5.0" \
     BIN="${SLICES}/armv7/TuneTube" OBJDIR=build/obj-armv7
 
 make -C "${ROOT}" clean all \
+    THEOS="${THEOS}" TC="${TC}" LDID="${LDID}" \
     TRIPLE=arm64-apple-darwin SDK="${SDK_V64}" \
     ARCH="-arch arm64 -miphoneos-version-min=7.0" \
     BIN="${SLICES}/arm64/TuneTube" OBJDIR=build/obj-arm64

@@ -243,7 +243,7 @@ static YTMTrack *YTMTrackFromRenderer(NSDictionary *renderer) {
     NSMutableArray *metadata = [NSMutableArray array];
     for (NSUInteger index = 1; index < [texts count]; ++index) {
         NSString *text = [texts objectAtIndex:index];
-        /* duration is a separate column in some responses, not the artist */
+        /* keep duration separate because some responses put it in its own column */
         if (!YTMLooksLikeClock(text)) [metadata addObject:text];
     }
     NSUInteger artistIndex = NSNotFound;
@@ -579,7 +579,7 @@ static NSURL *YTMDirectAudioURL(id root, BOOL *ciphered) {
     if (!best) best = combined;
     if (best) return [NSURL URLWithString:YTMString([best objectForKey:@"url"])];
 
-    /* ios may return an hls manifest instead of adaptive formats */
+    /* accept hls because ios may return a manifest instead of adaptive formats */
     return [NSURL URLWithString:YTMString([streaming objectForKey:@"hlsManifestUrl"])];
 }
 

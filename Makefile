@@ -1,9 +1,9 @@
-# cross-compile the non-arc music client for jailbroken legacy ios devices
-# keep the base slice small; Foundation/UIKit/AVFoundation are enough
+# keep the build usable on jailbroken legacy ios devices
+# keep the base slice small because old devices have less memory
 
-THEOS   ?= $(HOME)/theos
-TC      ?= $(firstword $(wildcard $(THEOS)/toolchain/linux/iphone/bin $(HOME)/theos/toolchain/linux/iphone/bin))
-SDK     ?= $(firstword $(wildcard $(YTM_SDK_V7) $(HOME)/sdks-armv7 $(HOME)/sdks/iPhoneOS6.1.sdk $(HOME)/sdks))
+THEOS   ?= $(error set THEOS=/path/to/theos)
+TC      ?= $(if $(YTM_TC),$(YTM_TC),$(THEOS)/toolchain/linux/iphone/bin)
+SDK     ?= $(if $(YTM_SDK_V7),$(YTM_SDK_V7),$(error set SDK=/path/to/iphoneos.sdk))
 LDID    ?= $(TC)/ldid
 
 TRIPLE  ?= arm-apple-darwin11
