@@ -220,12 +220,14 @@ static BOOL TuneIsNetworkError(NSError *error) {
     _card.frame = CGRectMake(8.0f, 5.0f, MAX(80.0f, bounds.size.width - 16.0f),
                              MAX(64.0f, bounds.size.height - 10.0f));
     _cardGradient.frame = _card.bounds;
-    _artwork.frame = CGRectMake(8.0f, 8.0f, 58.0f, 58.0f);
+    CGFloat artworkY = floorf((_card.bounds.size.height - 58.0f) * 0.5f);
+    _artwork.frame = CGRectMake(8.0f, artworkY, 58.0f, 58.0f);
     CGFloat textX = 78.0f;
     CGFloat right = _card.bounds.size.width - 12.0f;
-    _titleLabel.frame = CGRectMake(textX, 12.0f, MAX(20.0f, right - textX - 48.0f), 22.0f);
-    _artistLabel.frame = CGRectMake(textX, 36.0f, MAX(20.0f, right - textX - 8.0f), 19.0f);
-    _durationLabel.frame = CGRectMake(right - 48.0f, 12.0f, 48.0f, 18.0f);
+    CGFloat textY = floorf((_card.bounds.size.height - 45.0f) * 0.5f);
+    _titleLabel.frame = CGRectMake(textX, textY, MAX(20.0f, right - textX - 48.0f), 22.0f);
+    _artistLabel.frame = CGRectMake(textX, textY + 24.0f, MAX(20.0f, right - textX - 8.0f), 19.0f);
+    _durationLabel.frame = CGRectMake(right - 48.0f, textY, 48.0f, 18.0f);
 }
 
 @end

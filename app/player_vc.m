@@ -120,9 +120,7 @@ static UIImage *TunePlayerSearchImage(CGFloat size) {
 @end
 
 static void PlayerStyleVolumeView(MPVolumeView *volumeView) {
-    UIColor *volumeThumbColor = TuneTubeThemeIsLight()
-        ? [UIColor colorWithWhite:0.96f alpha:1.0f]
-        : [UIColor colorWithWhite:0.58f alpha:1.0f];
+    UIColor *volumeThumbColor = TuneThemeSliderThumb();
     UIGraphicsBeginImageContextWithOptions(CGSizeMake(28.0f, 28.0f), NO, 0.0f);
     CGContextRef thumbContext = UIGraphicsGetCurrentContext();
     CGContextSetFillColorWithColor(thumbContext,
@@ -138,8 +136,8 @@ static void PlayerStyleVolumeView(MPVolumeView *volumeView) {
         if (![subview isKindOfClass:[UISlider class]]) continue;
         UISlider *slider = (UISlider *)subview;
         if ([slider respondsToSelector:@selector(setMinimumTrackTintColor:)]) {
-            slider.minimumTrackTintColor = TuneThemeAccent();
-            slider.maximumTrackTintColor = TuneThemeMutedText();
+            slider.minimumTrackTintColor = TuneThemeSliderMinimum();
+            slider.maximumTrackTintColor = TuneThemeSliderMaximum();
         }
         [slider setThumbImage:volumeThumb forState:UIControlStateNormal];
         [slider setThumbImage:volumeThumb forState:UIControlStateHighlighted];
@@ -169,13 +167,11 @@ static void PlayerStyleVolumeView(MPVolumeView *volumeView) {
 
 static void PlayerStyleSlider(UISlider *slider) {
     if ([slider respondsToSelector:@selector(setMinimumTrackTintColor:)]) {
-        slider.minimumTrackTintColor = TuneThemeAccent();
-        slider.maximumTrackTintColor = TuneThemeMutedText();
+        slider.minimumTrackTintColor = TuneThemeSliderMinimum();
+        slider.maximumTrackTintColor = TuneThemeSliderMaximum();
     }
     if ([slider respondsToSelector:@selector(setThumbTintColor:)])
-        slider.thumbTintColor = TuneTubeThemeIsLight()
-            ? [UIColor colorWithWhite:0.96f alpha:1.0f]
-            : TuneThemePrimaryText();
+        slider.thumbTintColor = TuneThemeSliderThumb();
 }
 
 static BOOL PlayerIsPad(void) {
@@ -512,7 +508,7 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
 
     if (landscape) {
         CGFloat side = PlayerIsPad() ? 28.0f : 14.0f;
-        /* leave a little more air below the header on the wide ipad layout */
+        /* keep the wide ipad layout from pressing the artwork against the header */
         CGFloat top = headerHeight + (PlayerIsPad() ? 28.0f : 8.0f);
         CGFloat leftWidth = MIN(b.size.height - 56.0f, b.size.width * 0.42f);
         if (leftWidth < 172.0f) leftWidth = 172.0f;
@@ -531,30 +527,38 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
 
         CGFloat rightX = side + leftWidth + (PlayerIsPad() ? 32.0f : 20.0f);
         CGFloat rightWidth = MAX(120.0f, b.size.width - rightX - side);
-        CGFloat playSize = compact ? 58.0f : (PlayerIsPad() ? 76.0f : 68.0f);
-        CGFloat small = compact ? 34.0f : (PlayerIsPad() ? 48.0f : 42.0f);
-        CGFloat gap = compact ? 4.0f : 8.0f;
+        CGFloat playSize = compact ? 52.0f : (PlayerIsPad() ? 76.0f : 68.0f);
+        CGFloat small = compact ? 30.0f : (PlayerIsPad() ? 48.0f : 42.0f);
+        CGFloat gap = compact ? 3.0f : 8.0f;
         CGFloat artworkCenterY = CGRectGetMidY(_artwork.frame);
-        CGFloat controlY = artworkCenterY - floorf(playSize * 0.5f);
-        CGFloat sliderY = MAX(headerHeight + 34.0f, controlY - 42.0f);
+        CGFloat sliderY = MAX(headerHeight + 34.0f,
+                              artworkCenterY - floorf(playSize * 0.5f) - 42.0f);
         _progress.frame = CGRectMake(rightX, sliderY, rightWidth, 24.0f);
         _elapsedLabel.frame = CGRectMake(rightX + 2.0f, sliderY + 18.0f, 70.0f, 18.0f);
         _durationLabel.frame = CGRectMake(rightX + rightWidth - 72.0f, sliderY + 18.0f,
                                           70.0f, 18.0f);
 
-        _playButton.frame = CGRectMake(rightX + floorf((rightWidth - playSize) * 0.5f),
-                                       controlY, playSize, playSize);
-        CGFloat centerX = CGRectGetMidX(_playButton.frame);
+        CGFloat volumeY = MIN(b.size.height - 32.0f,
+                              artworkCenterY + floorf(playSize * 0.5f) + 12.0f);
+        CGFloat controlTop = sliderY + 38.0f;
+        CGFloat controlBottom = volumeY - 8.0f;
+        CGFloat controlY = controlTop + MAX(0.0f,
+                                            floorf((controlBottom - controlTop - playSize) * 0.5f));
+        if (controlY + playSize > controlBottom)
+            controlY = MAX(controlTop, controlBottom - playSize);
+
+        CGFloat groupWidth = playSize + (small * 4.0f) + (gap * 4.0f);
+        CGFloat groupX = rightX + MAX(0.0f, floorf((rightWidth - groupWidth) * 0.5f));
+        CGFloat playX = groupX + small + gap + small + gap;
+        _playButton.frame = CGRectMake(playX, controlY, playSize, playSize);
         CGFloat smallY = controlY + floorf((playSize - small) * 0.5f);
-        _previousButton.frame = CGRectMake(centerX - playSize * 0.5f - gap - small,
-                                           smallY, small, small);
-        _nextButton.frame = CGRectMake(centerX + playSize * 0.5f + gap,
+        _favoriteButton.frame = CGRectMake(groupX, smallY, small, small);
+        _previousButton.frame = CGRectMake(groupX + small + gap, smallY, small, small);
+        _nextButton.frame = CGRectMake(CGRectGetMaxX(_playButton.frame) + gap,
                                        smallY, small, small);
         _repeatButton.frame = CGRectMake(CGRectGetMaxX(_nextButton.frame) + gap,
                                          smallY, small, small);
-        _favoriteButton.frame = CGRectMake(CGRectGetMinX(_previousButton.frame) - gap - small,
-                                           smallY, small, small);
-        _volumeView.frame = CGRectMake(rightX, MIN(b.size.height - 32.0f, controlY + playSize + 8.0f) - 4.0f,
+        _volumeView.frame = CGRectMake(rightX, volumeY - 4.0f,
                                        rightWidth, 24.0f);
         PlayerStyleVolumeView(_volumeView);
     } else {
@@ -579,24 +583,29 @@ static BOOL PlayerIsCompactPhone(CGFloat height) {
         _durationLabel.frame = CGRectMake(b.size.width - 96.0f, sliderY + 18.0f,
                                           70.0f, 18.0f);
 
-        CGFloat controlY = MIN(b.size.height - 92.0f, sliderY + 46.0f);
         CGFloat playSize = PlayerIsPad() ? 86.0f : 62.0f;
-        _playButton.frame = CGRectMake(floorf((b.size.width - playSize) * 0.5f), controlY,
-                                       playSize, playSize);
         CGFloat small = PlayerIsPad() ? 52.0f : 42.0f;
         CGFloat gap = PlayerIsPad() ? 9.0f : 7.0f;
-        CGFloat centerX = CGRectGetMidX(_playButton.frame);
+        CGFloat volumeY = MIN(b.size.height - 28.0f,
+                              sliderY + 24.0f + 42.0f + playSize + 8.0f);
+        CGFloat controlTop = sliderY + 38.0f;
+        CGFloat controlBottom = volumeY - 8.0f;
+        CGFloat controlY = controlTop + MAX(0.0f,
+                                            floorf((controlBottom - controlTop - playSize) * 0.5f));
+        if (controlY + playSize > controlBottom)
+            controlY = MAX(controlTop, controlBottom - playSize);
+        CGFloat groupWidth = playSize + (small * 4.0f) + (gap * 4.0f);
+        CGFloat groupX = MAX(0.0f, floorf((b.size.width - groupWidth) * 0.5f));
+        CGFloat playX = groupX + small + gap + small + gap;
+        _playButton.frame = CGRectMake(playX, controlY, playSize, playSize);
         CGFloat smallY = controlY + floorf((playSize - small) * 0.5f);
-        _previousButton.frame = CGRectMake(centerX - playSize * 0.5f - gap - small,
-                                           smallY, small, small);
-        _nextButton.frame = CGRectMake(centerX + playSize * 0.5f + gap,
+        _favoriteButton.frame = CGRectMake(groupX, smallY, small, small);
+        _previousButton.frame = CGRectMake(groupX + small + gap, smallY, small, small);
+        _nextButton.frame = CGRectMake(CGRectGetMaxX(_playButton.frame) + gap,
                                        smallY, small, small);
         _repeatButton.frame = CGRectMake(CGRectGetMaxX(_nextButton.frame) + gap,
                                          smallY, small, small);
-        _favoriteButton.frame = CGRectMake(CGRectGetMinX(_previousButton.frame) - gap - small,
-                                           smallY, small, small);
-        CGFloat volumeY = MIN(b.size.height - 28.0f, controlY + playSize + 8.0f);
-        _volumeView.frame = CGRectMake(38.0f, volumeY - 4.0f, b.size.width - 76.0f, 24.0f);
+        _volumeView.frame = CGRectMake(24.0f, volumeY - 4.0f, b.size.width - 48.0f, 24.0f);
         PlayerStyleVolumeView(_volumeView);
     }
 }

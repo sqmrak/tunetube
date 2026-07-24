@@ -3,6 +3,7 @@
 #import <QuartzCore/QuartzCore.h>
 
 #import "tunetube_config.h"
+#import "tunetube_image_cache.h"
 #import "tunetube_theme.h"
 #import "ytm_api.h"
 #import "ytm_player.h"
@@ -108,6 +109,141 @@ void TuneTubeRemoveTrack(YTMTrack *track) {
     TuneTubeWriteEntries(saved, TUNETUBE_LIBRARY_DEFAULTS_KEY);
 }
 
+static NSString *TuneTubeLibraryThumbnailURL(YTMTrack *track) {
+    NSString *url = track.thumbnailURL;
+    if (url.length) {
+        if ([url hasPrefix:@"//"])
+            return [NSString stringWithFormat:@"https:%@", url];
+        return url;
+    }
+    if (!track.videoID.length) return nil;
+    return [NSString stringWithFormat:@"https://i.ytimg.com/vi/%@/hqdefault.jpg",
+            track.videoID];
+}
+
+@interface TuneLibraryCell : UITableViewCell {
+    UIView *_card;
+    CAGradientLayer *_cardGradient;
+    UIImageView *_artwork;
+    UILabel *_titleLabel;
+    UILabel *_artistLabel;
+    NSString *_imageURL;
+}
+- (void)configureWithTrack:(YTMTrack *)track;
+@end
+
+@implementation TuneLibraryCell
+
+- (void)applyTheme {
+    _card.layer.borderColor = TuneThemeBorder().CGColor;
+    _cardGradient.colors = [NSArray arrayWithObjects:
+                            (id)TuneThemeSurfaceTop().CGColor,
+                            (id)TuneThemeSurfaceBottom().CGColor, nil];
+    _artwork.backgroundColor = TuneThemeSurface();
+    _titleLabel.textColor = TuneThemePrimaryText();
+    _artistLabel.textColor = TuneThemeSecondaryText();
+}
+
+- (id)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)reuseIdentifier {
+    self = [super initWithStyle:style reuseIdentifier:reuseIdentifier];
+    if (!self) return nil;
+    self.backgroundColor = [UIColor clearColor];
+    self.contentView.backgroundColor = [UIColor clearColor];
+    self.selectionStyle = UITableViewCellSelectionStyleNone;
+
+    _card = [[UIView alloc] initWithFrame:CGRectZero];
+    _card.layer.cornerRadius = 10.0f;
+    _card.layer.borderWidth = 1.0f;
+    _card.layer.shadowColor = [UIColor blackColor].CGColor;
+    _card.layer.shadowOpacity = 0.35f;
+    _card.layer.shadowOffset = CGSizeMake(0.0f, 2.0f);
+    _card.layer.shadowRadius = 2.0f;
+    _card.layer.shouldRasterize = YES;
+    _card.layer.rasterizationScale = [UIScreen mainScreen].scale;
+    _cardGradient = [[CAGradientLayer layer] retain];
+    _cardGradient.cornerRadius = 10.0f;
+    [_card.layer insertSublayer:_cardGradient atIndex:0];
+    [self.contentView addSubview:_card];
+
+    _artwork = [[UIImageView alloc] initWithFrame:CGRectZero];
+    _artwork.layer.cornerRadius = 7.0f;
+    _artwork.layer.masksToBounds = YES;
+    _artwork.contentMode = UIViewContentModeScaleAspectFill;
+    _artwork.image = [UIImage imageNamed:@"Icon.png"];
+    [_card addSubview:_artwork];
+
+    _titleLabel = [[UILabel alloc] initWithFrame:CGRectZero];
+    _titleLabel.backgroundColor = [UIColor clearColor];
+    _titleLabel.font = [UIFont boldSystemFontOfSize:15.0f];
+    _titleLabel.lineBreakMode = UILineBreakModeTailTruncation;
+    [_card addSubview:_titleLabel];
+
+    _artistLabel = [[UILabel alloc] initWithFrame:CGRectZero];
+    _artistLabel.backgroundColor = [UIColor clearColor];
+    _artistLabel.font = [UIFont systemFontOfSize:13.0f];
+    _artistLabel.lineBreakMode = UILineBreakModeTailTruncation;
+    [_card addSubview:_artistLabel];
+    [self applyTheme];
+    return self;
+}
+
+- (void)dealloc {
+    [_card release];
+    [_cardGradient release];
+    [_artwork release];
+    [_titleLabel release];
+    [_artistLabel release];
+    [_imageURL release];
+    [super dealloc];
+}
+
+- (void)prepareForReuse {
+    [super prepareForReuse];
+    [_imageURL release];
+    _imageURL = nil;
+    _artwork.image = [UIImage imageNamed:@"Icon.png"];
+    _titleLabel.text = nil;
+    _artistLabel.text = nil;
+}
+
+- (void)configureWithTrack:(YTMTrack *)track {
+    [self applyTheme];
+    [_imageURL release];
+    _imageURL = [TuneTubeLibraryThumbnailURL(track) copy];
+    _artwork.image = [UIImage imageNamed:@"Icon.png"];
+    _titleLabel.text = track.title;
+    _artistLabel.text = YTMDisplayArtist(track.artist);
+    if (track.album.length)
+        _artistLabel.text = [NSString stringWithFormat:@"%@  ·  %@",
+                             YTMDisplayArtist(track.artist), track.album];
+    if (!_imageURL.length) return;
+
+    NSString *requestedURL = [_imageURL copy];
+    TuneLoadImage(requestedURL, ^(UIImage *image) {
+        if (image && [_imageURL isEqualToString:requestedURL])
+            _artwork.image = image;
+        [requestedURL release];
+    });
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGRect bounds = self.contentView.bounds;
+    _card.frame = CGRectMake(8.0f, 5.0f, MAX(80.0f, bounds.size.width - 16.0f),
+                             MAX(66.0f, bounds.size.height - 10.0f));
+    _cardGradient.frame = _card.bounds;
+    CGFloat artworkSize = MIN(58.0f, _card.bounds.size.height - 12.0f);
+    CGFloat artworkY = floorf((_card.bounds.size.height - artworkSize) * 0.5f);
+    _artwork.frame = CGRectMake(8.0f, artworkY, artworkSize, artworkSize);
+    CGFloat textX = CGRectGetMaxX(_artwork.frame) + 12.0f;
+    CGFloat textY = floorf((_card.bounds.size.height - 43.0f) * 0.5f);
+    CGFloat right = _card.bounds.size.width - 30.0f;
+    _titleLabel.frame = CGRectMake(textX, textY, MAX(20.0f, right - textX), 22.0f);
+    _artistLabel.frame = CGRectMake(textX, textY + 24.0f, MAX(20.0f, right - textX), 19.0f);
+}
+
+@end
+
 @interface TuneLibraryVC ()
 - (void)donePressed;
 - (void)reloadLibrary;
@@ -166,7 +302,7 @@ void TuneTubeRemoveTrack(YTMTrack *track) {
     _table.separatorStyle = UITableViewCellSeparatorStyleNone;
     _table.dataSource = self;
     _table.delegate = self;
-    _table.rowHeight = 66.0f;
+    _table.rowHeight = 76.0f;
     _table.contentInset = UIEdgeInsetsMake(10.0f, 0.0f, 10.0f, 0.0f);
     [self.view addSubview:_table];
 
@@ -264,18 +400,12 @@ void TuneTubeRemoveTrack(YTMTrack *track) {
 - (UITableViewCell *)tableView:(UITableView *)tableView
          cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     static NSString *cellID = @"TuneLibraryCell";
-    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:cellID];
-    if (!cell) cell = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle
-                                               reuseIdentifier:cellID] autorelease];
+    TuneLibraryCell *cell = (TuneLibraryCell *)[tableView dequeueReusableCellWithIdentifier:cellID];
+    if (!cell)
+        cell = [[[TuneLibraryCell alloc] initWithStyle:UITableViewCellStyleDefault
+                                      reuseIdentifier:cellID] autorelease];
     YTMTrack *track = [_tracks objectAtIndex:(NSUInteger)indexPath.row];
-    cell.backgroundColor = TuneThemeSurface();
-    cell.textLabel.textColor = TuneThemePrimaryText();
-    cell.textLabel.font = [UIFont boldSystemFontOfSize:15.0f];
-    cell.detailTextLabel.textColor = TuneThemeSecondaryText();
-    cell.detailTextLabel.font = [UIFont systemFontOfSize:12.0f];
-    cell.textLabel.text = track.title;
-    cell.detailTextLabel.text = YTMDisplayArtist(track.artist);
-    cell.imageView.image = [UIImage imageNamed:@"Icon.png"];
+    [cell configureWithTrack:track];
     cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
     return cell;
 }

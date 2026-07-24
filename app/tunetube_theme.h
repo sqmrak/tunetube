@@ -30,5 +30,8 @@ UIColor *TuneThemeSecondaryText(void);
 UIColor *TuneThemeMutedText(void);
 UIColor *TuneThemeBorder(void);
 UIColor *TuneThemeSearchBackground(void);
+UIColor *TuneThemeSliderMinimum(void);
+UIColor *TuneThemeSliderMaximum(void);
+UIColor *TuneThemeSliderThumb(void);
 
 #endif /* TUNETUBE_THEME_H */
