@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# build a jailbreak-installable IPA with the conventional Payload layout
+# keep the ipa layout compatible with jailbreak installers
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 STAGE="$ROOT/.ipa-stage"
-OUT="$ROOT/TuneTube-1.0.1-stable.ipa"
+OUT="$ROOT/TuneTube-v1.0.2-stable.ipa"
 
 bash "$ROOT/build_fat.sh"
 rm -rf "$STAGE"

@@ -72,8 +72,8 @@
     name.textColor = TuneThemePrimaryText();
     name.shadowColor = [UIColor colorWithWhite:0 alpha:0.62f];
     name.shadowOffset = CGSizeMake(0.0f, 1.0f);
-    name.font = [UIFont boldSystemFontOfSize:18.0f];
-    name.text = @"TuneTube";
+    name.font = [UIFont boldSystemFontOfSize:15.0f];
+    name.text = @"TuneTube-v1.0.2-stable";
     [_card addSubview:name];
 
     _githubButton = [[UIButton buttonWithType:UIButtonTypeCustom] retain];
@@ -105,8 +105,7 @@
                        @"YouTube Music client for iOS 5-10\n\n"
                         "TuneTube searches YouTube Music and plays audio anonymously. "
                         "No Google password, cookies, or sign-in flow are required.\n\n"
-                        "Built for armv7 and arm64.\n"
-                        "Version: %@", TUNETUBE_VERSION];
+                       "Built for armv7 and arm64."];
     [_info addSubview:_bodyLabel];
 
     [self layoutAbout];
@@ -146,8 +145,9 @@
     UIImageView *avatar = (UIImageView *)[_card viewWithTag:1];
     UILabel *name = (UILabel *)[_card viewWithTag:2];
     avatar.frame = CGRectMake(14.0f, 14.0f, 90.0f, 90.0f);
-    name.frame = CGRectMake(120.0f, 28.0f, MAX(40.0f, cardWidth - 132.0f), 28.0f);
-    _githubButton.frame = CGRectMake(120.0f, 61.0f, MAX(40.0f, cardWidth - 132.0f), 28.0f);
+    name.font = [UIFont boldSystemFontOfSize:cardWidth < 360.0f ? 14.0f : 18.0f];
+    name.frame = CGRectMake(120.0f, 25.0f, MAX(40.0f, cardWidth - 132.0f), 25.0f);
+    _githubButton.frame = CGRectMake(120.0f, 57.0f, MAX(40.0f, cardWidth - 132.0f), 25.0f);
 
     CGFloat textWidth = cardWidth - 32.0f;
     CGSize textSize = [_bodyLabel.text sizeWithFont:_bodyLabel.font

@@ -1,7 +1,7 @@
 #ifndef TUNETUBE_CONFIG_H
 #define TUNETUBE_CONFIG_H
 
-#define TUNETUBE_VERSION @"1.0.1-stable"
+#define TUNETUBE_VERSION @"v1.0.2-stable"
 #define TUNETUBE_API_KEY_DEFAULTS_KEY @"YTMAPIKey"
 #define TUNETUBE_LIBRARY_DEFAULTS_KEY @"TuneTubeFavorites"
 #define TUNETUBE_HISTORY_DEFAULTS_KEY @"TuneTubeRecentTracks"

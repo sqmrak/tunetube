@@ -17,9 +17,9 @@
 	<key>CFBundleSignature</key>
 	<string>TUNE</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.1-stable</string>
+	<string>1.0.2-stable</string>
 	<key>CFBundleVersion</key>
-	<string>1001</string>
+	<string>1002</string>
 	<key>CFBundleIconFiles</key>
 	<array>
 		<string>Icon.png</string>
